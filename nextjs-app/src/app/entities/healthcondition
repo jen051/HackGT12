@@ -1,0 +1,38 @@
+{
+  "name": "HealthCondition",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the health condition"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the condition"
+    },
+    "dietary_restrictions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Associated dietary restrictions"
+    },
+    "recommended_nutrients": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Nutrients to focus on"
+    },
+    "nutrients_to_limit": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Nutrients to limit or avoid"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

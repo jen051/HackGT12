@@ -8,7 +8,11 @@ import {
   BookOpen, 
   User,
   Home,
-  PlusCircle
+  PlusCircle,
+  ShoppingCart,
+  DollarSign,
+  UserPlus,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +34,31 @@ const navigationItems = [
     title: "Dashboard",
     url: createPageUrl("Dashboard"),
     icon: Home,
+  },
+  {
+    title: "Account",
+    url: createPageUrl("Account"),
+    icon: UserPlus,
+  },
+  {
+    title: "Profile Setup",
+    url: createPageUrl("ProfileSetup"),
+    icon: Settings,
+  },
+  {
+    title: "Grocery List",
+    url: createPageUrl("GroceryList"),
+    icon: ShoppingCart,
+  },
+  {
+    title: "Budget Deals",
+    url: createPageUrl("BudgetDeals"),
+    icon: DollarSign,
+  },
+  {
+    title: "Recipes from Grocery",
+    url: createPageUrl("RecipesFromGrocery"),
+    icon: ChefHat,
   },
   {
     title: "Recipe Builder",

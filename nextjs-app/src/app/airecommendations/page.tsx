@@ -168,7 +168,7 @@ Please provide detailed recipes with nutritional information.`;
                 <Alert>
                   <Heart className="w-4 h-4" />
                   <AlertDescription>
-                    No health profile found. <a href="/HealthProfile" className="text-blue-600 underline">Create your health profile</a> to get personalized recommendations.
+                    No health profile found. <a href="/healthprofile" className="text-blue-600 underline">Create your health profile</a> to get personalized recommendations.
                   </AlertDescription>
                 </Alert>
               )}

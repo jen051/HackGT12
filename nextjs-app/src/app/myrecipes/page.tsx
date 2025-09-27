@@ -16,10 +16,30 @@ export default function MyRecipes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadRecipes();
+    loadFavorites();
   }, []);
+
+  const loadFavorites = () => {
+    const savedFavorites = localStorage.getItem('favoriteRecipes');
+    if (savedFavorites) {
+      setFavorites(new Set(JSON.parse(savedFavorites)));
+    }
+  };
+
+  const toggleFavorite = (recipeId: string) => {
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(recipeId)) {
+      newFavorites.delete(recipeId);
+    } else {
+      newFavorites.add(recipeId);
+    }
+    setFavorites(newFavorites);
+    localStorage.setItem('favoriteRecipes', JSON.stringify([...newFavorites]));
+  };
 
   useEffect(() => {
     const filterRecipes = () => {
@@ -40,6 +60,8 @@ export default function MyRecipes() {
       if (selectedFilter !== "all") {
         filtered = filtered.filter((recipe: any) => {
           switch(selectedFilter) {
+            case "favorites":
+              return favorites.has(recipe.id);
             case "quick":
               return (recipe.prep_time || 0) + (recipe.cook_time || 0) <= 30;
             case "healthy":
@@ -56,7 +78,7 @@ export default function MyRecipes() {
     };
 
     filterRecipes();
-  }, [recipes, searchTerm, selectedFilter]);
+  }, [recipes, searchTerm, selectedFilter, favorites]);
 
   const loadRecipes = async () => {
     setIsLoading(true);
@@ -114,7 +136,7 @@ export default function MyRecipes() {
                 />
               </div>
               <div className="flex gap-2">
-                {["all", "quick", "healthy", "easy"].map(filter => (
+                {["all", "favorites", "quick", "healthy", "easy"].map(filter => (
                   <Button
                     key={filter}
                     variant={selectedFilter === filter ? "default" : "outline"}
@@ -122,7 +144,11 @@ export default function MyRecipes() {
                     size="sm"
                     className={selectedFilter === filter ? "bg-green-600 hover:bg-green-700" : ""}
                   >
-                    <Filter className="w-3 h-3 mr-1" />
+                    {filter === "favorites" ? (
+                      <Heart className="w-3 h-3 mr-1" />
+                    ) : (
+                      <Filter className="w-3 h-3 mr-1" />
+                    )}
                     {filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </Button>
                 ))}
@@ -149,9 +175,21 @@ export default function MyRecipes() {
                         <h3 className="text-xl font-bold text-gray-900 mb-1">{recipe.title}</h3>
                         <p className="text-gray-600 line-clamp-2">{recipe.description}</p>
                       </div>
-                      <Badge className="bg-green-100 text-green-800">
-                        {recipe.difficulty || "Easy"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleFavorite(recipe.id)}
+                          className={`p-2 rounded-full transition-colors ${
+                            favorites.has(recipe.id)
+                              ? 'text-red-500 hover:text-red-600 bg-red-50'
+                              : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+                          }`}
+                        >
+                          <Heart className={`w-5 h-5 ${favorites.has(recipe.id) ? 'fill-current' : ''}`} />
+                        </button>
+                        <Badge className="bg-green-100 text-green-800">
+                          {recipe.difficulty || "Easy"}
+                        </Badge>
+                      </div>
                     </div>
 
                     {/* Recipe Stats */}
