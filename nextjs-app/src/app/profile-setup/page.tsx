@@ -382,7 +382,7 @@ export default function ProfileSetupPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Profile Setup</h1>
-          <p className="text-gray-600">Let's personalize your NutriCare experience</p>
+          <p className="text-gray-600">Let's personalize your PantryPal experience</p>
         </div>
 
         {/* Progress Bar */}

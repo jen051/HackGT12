@@ -63,7 +63,7 @@ export default function Dashboard() {
         <div>
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-green-600">NutriCare</h1>
+            <h1 className="text-xl font-bold text-green-600">PantryPal</h1>
             <p className="text-sm text-gray-500">Healthy Recipe Builder</p>
           </div>
 
@@ -125,7 +125,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Welcome to NutriCare
+            Welcome to PantryPal
           </h1>
           <p className="text-gray-600 text-lg">
             Your personalized nutrition and recipe management hub

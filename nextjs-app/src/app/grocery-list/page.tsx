@@ -23,7 +23,7 @@ export default function GroceryListPage() {
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [budget, setBudget] = useState(75); // Mock budget from profile
+  const [budget, setBudget] = useState(0); // Mock budget from profile
   const [userId, setUserId] = useState<string | null>(null);
 
   // No more hardcoded mock data - will be populated from API
@@ -274,33 +274,29 @@ export default function GroceryListPage() {
           </Card>
         )}
 
-        {/* Budget Summary */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-600" />
-              Budget Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">${budget}</p>
-                <p className="text-sm text-gray-600">Weekly Budget</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">${getTotalCost().toFixed(2)}</p>
-                <p className="text-sm text-gray-600">Estimated Total</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-purple-600">
-                  ${(budget - getTotalCost()).toFixed(2)}
-                </p>
-                <p className="text-sm text-gray-600">Remaining Budget</p>
-              </div>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="md:col-span-3 flex justify-center">
+            <div>
+              <p className="text-2xl font-bold text-green-600">${budget}</p>
+              <p className="text-sm text-gray-600">Weekly Budget</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Uncomment these when ready */}
+          {/* <div>
+            <p className="text-2xl font-bold text-blue-600">${getTotalCost().toFixed(2)}</p>
+            <p className="text-sm text-gray-600">Estimated Total</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-purple-600">
+              ${(budget - getTotalCost()).toFixed(2)}
+            </p>
+            <p className="text-sm text-gray-600">Remaining Budget</p>
+          </div> */}
+        </div>
+      </CardContent>
+
 
         {/* Generate Button */}
         <div className="text-center mb-6">

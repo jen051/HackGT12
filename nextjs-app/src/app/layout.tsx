@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NutriCare - AI-Powered Healthy Recipe Builder",
+  title: "PantryPal - AI-Powered Healthy Recipe Builder",
   description: "Create personalized, nutritious recipes tailored to your health goals, dietary preferences, and restrictions with AI-powered recommendations.",
 };
 

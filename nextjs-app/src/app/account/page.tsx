@@ -11,7 +11,7 @@ import Link from "next/link";
 import { signIn, signUp } from "@/firebase/auth";
 
 export default function AccountPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -58,6 +58,7 @@ export default function AccountPage() {
         // setFormData({ name: "", email: "", password: "", confirmPassword: "" });
         setTimeout(() => {
           window.location.href = '/profile-setup';
+          
         }, 2000);
       }
     } catch (error: any) {
@@ -77,8 +78,8 @@ export default function AccountPage() {
           </CardTitle>
           <CardDescription>
             {isLogin 
-              ? 'Sign in to your NutriCare account' 
-              : 'Join NutriCare to start your healthy journey'
+              ? 'Sign in to your PantryPal account' 
+              : 'Join PantryPal to start your healthy journey'
             }
           </CardDescription>
         </CardHeader>

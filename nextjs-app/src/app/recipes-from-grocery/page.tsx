@@ -38,33 +38,7 @@ export default function RecipesFromGroceryPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Mock recipes
-  const mockRecipes: Recipe[] = [
-    {
-      id: "1",
-      name: "Mediterranean Chicken Bowl",
-      description: "A healthy and flavorful bowl with grilled chicken, quinoa, and fresh vegetables",
-      cookTime: 40,
-      cuisine: "Mediterranean",
-      ingredients: ["Chicken", "Quinoa", "Spinach", "Broccoli", "Sweet Potatoes"],
-      instructions: ["Cook stuff", "Mix together", "Serve hot"],
-      tags: ["Healthy", "Gluten-Free"],
-      isFavorite: false,
-      rating: 4.5,
-    },
-    {
-      id: "2",
-      name: "Greek Yogurt Parfait",
-      description: "A refreshing and protein-rich breakfast or snack",
-      cookTime: 10,
-      cuisine: "American",
-      ingredients: ["Greek Yogurt", "Bananas", "Apples", "Berries"],
-      instructions: ["Layer yogurt", "Add fruit", "Drizzle honey"],
-      tags: ["Breakfast", "Quick"],
-      isFavorite: false,
-      rating: 4.2,
-    },
-  ];
+  // Recipes will be populated from API call
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -102,15 +76,40 @@ export default function RecipesFromGroceryPage() {
     setIsGenerating(true);
     setMessage(null);
 
+    if (!userId) {
+      setMessage({ type: "error", text: "User not authenticated. Please log in again." });
+      setIsGenerating(false);
+      return;
+    }
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // mock API delay
-      setRecipes(mockRecipes);
+      const response = await fetch('/api/generaterecipes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate recipes from API.");
+      }
+
+      const data = await response.json();
+      console.log('API response:', data);
+      
+      setRecipes(data.recipes);
       setMessage({
         type: "success",
         text: "Recipes generated successfully! You can now favorite the ones you like.",
       });
-    } catch (error) {
-      setMessage({ type: "error", text: "Failed to generate recipes. Please try again." });
+    } catch (error: any) {
+      console.error("Error generating recipes:", error);
+      setMessage({ 
+        type: "error", 
+        text: error.message || "Failed to generate recipes. Please try again." 
+      });
     } finally {
       setIsGenerating(false);
     }

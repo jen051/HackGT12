@@ -117,7 +117,7 @@ export default function Layout({ children, currentPageName }) {
                 <Heart className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="font-bold text-gray-900 text-lg">NutriCare</h2>
+                <h2 className="font-bold text-gray-900 text-lg">PantryPal</h2>
                 <p className="text-xs text-green-600 font-medium">Healthy Recipe Builder</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/70 backdrop-blur-sm border-b border-green-100 px-6 py-4 md:hidden">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-green-100 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-gray-900">NutriCare</h1>
+              <h1 className="text-xl font-bold text-gray-900">PantryPal</h1>
             </div>
           </header>
 
