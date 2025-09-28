@@ -2,11 +2,17 @@ import express from "express";
 import dotenv from "dotenv";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import fetch from "node-fetch"; 
+
 
 dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+const USDA_KEY = process.env.USDA_API_KEY; // ingredients
+const THEMEALDB_KEY = process.env.MEALDB_API_KEY; // recipies
 
 const PORT = 3000;
 
@@ -17,6 +23,21 @@ let sessionData = {
   approvedList: null,
   recipes: null
 };
+
+
+async function searchMealDBByIngredient(ingredient) {
+  const url = `https://www.themealdb.com/api/json/v1/${THEMEALDB_KEY}/filter.php?i=${encodeURIComponent(ingredient)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.meals || [];
+}
+
+async function getMealDetails(idMeal) {
+  const url = `https://www.themealdb.com/api/json/v1/${THEMEALDB_KEY}/lookup.php?i=${idMeal}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.meals ? data.meals[0] : null;
+}
 
 /* ==============================
    Helper: Open SQLite DB
@@ -29,46 +50,28 @@ async function openDB() {
 }
 
 /* ==============================
-   Helper: Fetch groceries
+   Helper: Fetch groceries from USDA
    ============================== */
 async function getGroceries(restrictions, preferences) {
-  const db = await openDB();
-  let where = [];
-  let params = {};
+  // Pick a keyword based on preferences or fallback
+  const keyword = preferences.length ? preferences[0] : "basic";
 
-  const restrictionMap = {
-    "Vegetarian": "vegetarian",
-    "Vegan": "vegan",
-    "Gluten-Free": "gluten_free",
-    "Dairy-Free": "dairy_free",
-    "Nut-Free": "nut_free",
-    "Shellfish-Free": "shellfish_free",
-    "Halal": "halal",
-    "Kosher": "kosher"
-  };
+  // Call USDA FoodData Central search API
+  const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(keyword)}&pageSize=10&api_key=${USDA_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
 
-  // Apply dietary restrictions (AND)
-  restrictions.forEach((r) => {
-    if (restrictionMap[r]) {
-      where.push(`${restrictionMap[r]} = 1`);
-    }
-  });
+  if (!data.foods) return [];
 
-  // Apply preferences (OR)
-  if (preferences.length) {
-    const prefConditions = preferences.map((p, i) => {
-      params[`$pref${i}`] = p;
-      return `preferences LIKE '%' || $pref${i} || '%'`;
-    });
-    where.push(`(${prefConditions.join(" OR ")})`);
-  }
-
-  // Use DISTINCT to avoid duplicates
-  const query = `SELECT DISTINCT * FROM groceries ${where.length ? "WHERE " + where.join(" AND ") : ""}`;
-  const rows = await db.all(query, params);
-  await db.close();
-  return rows;
+  // Map USDA results into your grocery format
+  return data.foods.map(food => ({
+    name: food.description,
+    category: food.foodCategory || "General",
+    unit: "g",
+    price_per_unit: 1.0 // Placeholder (since USDA doesn’t give prices)
+  }));
 }
+
 
 
 /* ==============================
@@ -161,22 +164,48 @@ app.post("/edit-grocery", (req, res) => {
 });
 
 /* ==============================
-   Step 3 — Generate Recipes
+   Step 3 — Generate Recipes (with MealDB)
    ============================== */
 app.post("/generate-recipes", async (req, res) => {
-  const { approvedList, userInput } = sessionData;
-  if (!approvedList || !userInput) return res.status(400).json({ error: "Missing approved list or user input" });
+  const { approvedList } = sessionData;
+  if (!approvedList) return res.status(400).json({ error: "Missing approved list" });
 
   try {
-    // Include pantry items in approved list for recipe generation
-    const approvedItemNames = [
+    // Collect ingredient names from approved + pantry
+    const ingredients = [
       ...approvedList.approved_items.map(i => i.name),
       ...approvedList.pantry_items.map(i => i.name)
     ];
 
-    const recipes = await getRecipes(approvedItemNames, userInput.restrictions, userInput.preferences);
+    let recipes = [];
+
+    // Search recipes for each ingredient
+    for (const ing of ingredients) {
+      const meals = await searchMealDBByIngredient(ing);
+      if (meals.length) {
+        // fetch details for first few meals
+        for (let i = 0; i < Math.min(2, meals.length); i++) {
+          const details = await getMealDetails(meals[i].idMeal);
+          if (details) {
+            recipes.push({
+              id: details.idMeal,
+              name: details.strMeal,
+              category: details.strCategory,
+              area: details.strArea,
+              instructions: details.strInstructions,
+              thumbnail: details.strMealThumb,
+              ingredients: Object.keys(details)
+                .filter(k => k.startsWith("strIngredient") && details[k])
+                .map(k => details[k])
+            });
+          }
+        }
+      }
+    }
+
     sessionData.recipes = recipes;
     res.json({ message: "Recipes generated", recipes });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to generate recipes" });
