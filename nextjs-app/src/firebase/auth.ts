@@ -1,6 +1,31 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut } from "firebase/auth";
 import { auth, db } from "./config";
 import { doc, setDoc, collection, serverTimestamp } from "firebase/firestore";
+
+// Helper function to save user UID to localStorage
+function saveUserToLocalStorage(user: any) {
+  try {
+    const userData = {
+      uid: user.uid
+    };
+    
+    localStorage.setItem('user', JSON.stringify(userData));
+    console.log('User UID saved to localStorage:', userData);
+  } catch (error) {
+    console.error('Error saving user UID to localStorage:', error);
+  }
+}
+
+// Helper function to clear user data from localStorage
+function clearUserFromLocalStorage() {
+  try {
+    localStorage.removeItem('user');
+    localStorage.removeItem('profileData');
+    console.log('User data cleared from localStorage');
+  } catch (error) {
+    console.error('Error clearing user from localStorage:', error);
+  }
+}
 
 // Sign up new user
 export async function signUp(email: string, password: string, name: string = "") {
@@ -35,6 +60,9 @@ export async function signUp(email: string, password: string, name: string = "")
       createdAt: serverTimestamp(),
       items: []
     }); // Can be empty or have initial fields
+
+    // Save user data to localStorage
+    saveUserToLocalStorage(user);
   }
 
   return user;
@@ -43,5 +71,44 @@ export async function signUp(email: string, password: string, name: string = "")
 // Login existing user
 export async function signIn(email: string, password: string) {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  return userCredential.user;
+  const user = userCredential.user;
+  
+  // Save user data to localStorage
+  if (user) {
+    saveUserToLocalStorage(user);
+  }
+  
+  return user;
+}
+
+// Sign out user
+export async function signOut() {
+  try {
+    await firebaseSignOut(auth);
+    clearUserFromLocalStorage();
+    console.log('User signed out successfully');
+  } catch (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
+}
+
+// Get current user from localStorage
+export function getCurrentUser() {
+  try {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      return JSON.parse(userData);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting current user from localStorage:', error);
+    return null;
+  }
+}
+
+// Check if user is signed in (based on localStorage)
+export function isUserSignedIn() {
+  const user = getCurrentUser();
+  return user !== null && user.uid !== undefined;
 }

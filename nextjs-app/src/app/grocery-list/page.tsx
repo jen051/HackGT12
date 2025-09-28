@@ -57,14 +57,47 @@ export default function GroceryListPage() {
     // Load mock data
     setGroceryItems(mockGroceryItems);
 
-    // Load pantry items from profile (mocked with localStorage)
-    const storedProfile = localStorage.getItem("profileData");
-    if (storedProfile) {
-      const parsed = JSON.parse(storedProfile);
-      if (parsed.ingredientsYouAlreadyHave) {
-        setPantryItems(parsed.ingredientsYouAlreadyHave);
+    // Load user profile data from API
+    const loadUserProfile = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = user.uid || user.user?.uid;
+        
+        if (userId) {
+          const response = await fetch(`/api/user?uid=${userId}`);
+          
+          if (response.ok) {
+            const userData = await response.json();
+            
+            // Update budget from user profile
+            if (userData.profile?.budget) {
+              setBudget(userData.profile.budget);
+            }
+
+            // Update pantry items from user profile
+            if (userData.profile?.inventory) {
+              const inventoryItems = userData.profile.inventory.split(',').map((item: string) => item.trim()).filter((item: string) => item);
+              setPantryItems(inventoryItems);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Fallback to localStorage if API fails
+        const storedProfile = localStorage.getItem("profileData");
+        if (storedProfile) {
+          const parsed = JSON.parse(storedProfile);
+          if (parsed.ingredientsYouAlreadyHave) {
+            setPantryItems(parsed.ingredientsYouAlreadyHave);
+          }
+          if (parsed.weeklyBudget) {
+            setBudget(parseFloat(parsed.weeklyBudget) || 75);
+          }
+        }
       }
-    }
+    };
+
+    loadUserProfile();
   }, []);
 
   const handleGenerateList = async () => {
@@ -72,13 +105,78 @@ export default function GroceryListPage() {
     setMessage(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Get user ID from localStorage or Firebase Auth
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('user', user);
+      const userId = user.uid || user.user?.uid;
+      
+      if (!userId) {
+        throw new Error('User not authenticated. Please log in again.');
+      }
+
+      const response = await fetch('/api/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          uid: userId,
+          user_query: 'Generate a recipe and a grocery list based on my profile preferences',
+        })
+      });
+
+      console.log('response', response);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user data: ${response.statusText}`);
+      }
+      // Fetch user profile data from API
+      // const response = await fetch('http://localhost:4000/generate-list', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     user_id: userId,
+      //     user_query: 'Generate a recipe and a grocery list based on my profile preferences',
+      //   })
+      // });
+
+      console.log('response', response);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Please log in again.');
+        } else if (response.status === 404) {
+          throw new Error('User profile not found. Please complete your profile setup.');
+        } else {
+          throw new Error(`Failed to fetch user data: ${response.statusText}`);
+        }
+      }
+
+      const userData = await response.json();
+      
+      // Update budget from user profile
+      if (userData.profile?.budget) {
+        setBudget(userData.profile.budget);
+      }
+
+      // Update pantry items from user profile
+      if (userData.profile?.inventory) {
+        const inventoryItems = userData.profile.inventory.split(',').map((item: string) => item.trim()).filter((item: string) => item);
+        setPantryItems(inventoryItems);
+      }
+
       setMessage({
         type: "success",
-        text: "Grocery list generated successfully! You can now customize it before proceeding to recipes.",
+        text: "Grocery list generated successfully based on your profile! You can now customize it before proceeding to recipes.",
       });
     } catch (error) {
-      setMessage({ type: "error", text: "Failed to generate grocery list. Please try again." });
+      console.error('Error generating grocery list:', error);
+      setMessage({ 
+        type: "error", 
+        text: error instanceof Error ? error.message : "Failed to generate grocery list. Please try again." 
+      });
     } finally {
       setIsGenerating(false);
     }

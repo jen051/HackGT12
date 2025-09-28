@@ -15,9 +15,9 @@ class Context(BaseModel):
 
 # Define the incoming request payload from the Next.js client
 class GenerateListRequest(BaseModel):
-    user_id: str
-    user_query: str = Field(..., description="The user's free-form request (e.g., 'list for the week').")
-    context: Context
+    username: str
+    user_query: str
+
 
 class Category(str, Enum):
     PROTEIN = "Protein"

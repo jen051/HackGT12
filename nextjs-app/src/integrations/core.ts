@@ -262,3 +262,4 @@ function generateMockRecipes(prompt: string): LLMResponse {
     recipes: selectedRecipes
   };
 }
+

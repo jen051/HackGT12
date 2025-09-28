@@ -81,7 +81,7 @@ def get_full_user_with_profile_by_name(username: str) -> dict | None:
     Returns a merged dict with user fields + profile fields.
     """
     # 1) find the user
-    q = db.collection("users").where("name", "==", username).limit(1)
+    q = db.collection("users").doc(username)
     docs = list(q.stream())
     if not docs:
         return None
