@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { signIn, signUp } from "@/firebase/auth";
 
 export default function AccountPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,20 +45,23 @@ export default function AccountPage() {
     }
 
     try {
-      // Mock authentication - in real app, this would call your backend
       if (isLogin) {
-        setMessage({ type: 'success', text: 'Login successful! Redirecting to profile setup...' });
-        // Redirect to profile setup after 2 seconds
+        await signIn(formData.email, formData.password);
+        setMessage({ type: 'success', text: 'Login successful! Redirecting to dashboard...' });
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 2000);
+      } else {
+        await signUp(formData.email, formData.password, formData.name);
+        setMessage({ type: 'success', text: 'Account created successfully! Please fill in your profile information.' });
+        // setIsLogin(true);
+        // setFormData({ name: "", email: "", password: "", confirmPassword: "" });
         setTimeout(() => {
           window.location.href = '/profile-setup';
         }, 2000);
-      } else {
-        setMessage({ type: 'success', text: 'Account created successfully! Please log in.' });
-        setIsLogin(true);
-        setFormData({ name: "", email: "", password: "", confirmPassword: "" });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'An error occurred. Please try again.' });
     }
   };
 

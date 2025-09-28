@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DollarSign, Heart, Globe, Utensils, X } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/firebase/config";
+import { updateUserProfile } from "@/firebase/profile";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function ProfileSetupPage() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [userId, setUserId] = useState<string | null>(null);
   const [profileData, setProfileData] = useState({
     // Budget
     weeklyBudget: "",
@@ -32,6 +36,19 @@ export default function ProfileSetupPage() {
   });
 
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        // Optionally redirect to login if no user is found
+        console.log("No user logged in for profile setup.");
+        window.location.href = '/account'; // Redirect to login
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const dietaryOptions = [
     "Vegetarian", "Vegan", "Pescatarian", "Gluten-Free", "Dairy-Free", 
@@ -100,14 +117,19 @@ export default function ProfileSetupPage() {
   };
 
   const handleSubmit = async () => {
+    if (!userId) {
+      setMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
+      return;
+    }
+
     try {
-      // Mock save - in real app, this would save to backend
+      await updateUserProfile(userId, profileData);
       setMessage({ type: 'success', text: 'Profile saved successfully! Redirecting to grocery list generator...' });
       setTimeout(() => {
         window.location.href = '/grocery-list';
       }, 2000);
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save profile. Please try again.' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save profile. Please try again.' });
     }
   };
 
