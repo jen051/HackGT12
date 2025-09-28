@@ -1,17 +1,34 @@
 import traceback
+from dotenv import load_dotenv
 import firebase_admin
+import os
+import json
 from firebase_admin import credentials, firestore
 
 def init_firestore():
     try:
-        # Avoid "ValueError: the default Firebase app already exists"
-        if not firebase_admin._apps:
-            cred = credentials.Certificate("serviceAccountKey.json")
-            firebase_admin.initialize_app(cred)
-        return firestore.client()
-    except Exception:
-        print("Failed to initialize Firebase. Check your serviceAccountKey.json path/contents.")
-        raise
+        app = firebase_admin.get_app()  # already initialized
+    except ValueError:
+        # 1) JSON contents in an env var (recommended for local/dev)
+        # os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+        env_path = Path(__file__).resolve().parents[1] / ".env"
+        load_dotenv(dotenv_path=env_path)
+        key = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+        if not key:
+            raise RuntimeError(
+                f"FIREBASE_SERVICE_ACCOUNT_JSON not set. Create {env_path} with 'FIREBASE_SERVICE_ACCOUNT_JSON=...'"
+            )
+        sa_info = json.loads(key)
+        cred = credentials.Certificate(sa_info)
+        app = firebase_admin.initialize_app(cred)
+        
+        # Fallback: load the local file relative to this module (robust to CWD)
+        # else:
+        #     key_path = Path(__file__).resolve().parent / "serviceAccountKey.json"
+        #     cred = credentials.Certificate(str(key_path))
+        #     app = firebase_admin.initialize_app(cred)
+
+    return firestore.client(app)
 
 def get_user_profile_by_name(db, username: str):
     """Query users by the 'name' field (may return multiple)."""
@@ -28,15 +45,15 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 # --- init (safe even if called multiple times) ---
-def get_db():
-    if not firebase_admin._apps:
-        here = Path(__file__).resolve().parent
-        key_path = here / "serviceAccountKey.json"          # sits next to this script
-        cred = credentials.Certificate(str(key_path))
-        firebase_admin.initialize_app(cred)
-    return firestore.client()
+# def get_db():
+#     if not firebase_admin._apps:
+#         here = Path(__file__).resolve().parent
+#         key_path = here / "serviceAccountKey.json"          # sits next to this script
+#         cred = credentials.Certificate(str(key_path))
+#         firebase_admin.initialize_app(cred)
+#     return firestore.client()
 
-db = get_db()
+db = init_firestore()
 
 # ---------- helpers ----------
 def get_user_doc_id_by_name(username: str) -> str | None:

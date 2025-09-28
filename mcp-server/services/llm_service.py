@@ -24,36 +24,41 @@ if not key:
 client = OpenAI(api_key=key)  
 
 
-def build_contextual_prompt(user_query: str, duration: str, context: Context) -> str:
+def build_contextual_prompt(user_query: str, context: Context) -> str:
     """Builds the comprehensive system prompt using the database context."""
-    
-
-
 
     # Extract context data
     dietary = context.dietary
     budget = context.budget
-    # staples = ", ".join(context.staples)
+    cuisines = context.cuisines
+    inventory = context.inventory
+    nutrition = context.nutrition
+    allergies = context.allergies
+    max_time = context.max_time
 
     # The detailed prompt embeds ALL database context as STRICT CONSTRAINTS
     system_message = f"""
     You are an expert nutritional meal and grocery list planner.
     Your task is to generate a comprehensive grocery list and meal plan in JSON format.
 
-    OUTPUT CONSTRAINTS (to keep the JSON compact and valid):
-    - mealPlan: exactly 7 entries (1 per day, pick the most relevant meal).
-    - groceryList: at most 25 unique items; aggregate quantities rather than listing duplicates.
-    - No code fences. Output JSON ONLY.
-    
+    OUTPUT SHAPE (exact keys and types):
+    - estimatedTotalCost: number
+    - recipe: string
+    - groceryList: array of objects with keys:
+      - item: string
+      - quantity: string
+        
     STRICT CONSTRAINTS (sourced directly from the user's database preferences):
-    1. DIETARY RESTRICTION: The entire plan must be strictly no "{dietary}".
+    1. DIETARY RESTRICTION: The entire plan must be strictly no "{dietary}". If no dietary restrictions, consider all options.
     2. BUDGET: The estimated total cost MUST NOT exceed ${budget}.
     3. SHOPPING LOCATION: Assume pricing and availability are based on publix in Midtown Atlanta.
+    4. CUISINES: Prefer recipes from these cuisines: {', '.join(cuisines) or 'None'}.
+    5. INVENTORY: Use these existing ingredients from the user's inventory where possible: {', '.join(inventory) or 'None'}.
+    6. NUTRITION: Prioritize these nutritional preferences: {', '.join(nutrition) or 'None'}.
+    7. ALLERGIES: Absolutely avoid any ingredients that may contain or be cross-contaminated with: {allergies}.
+    8. MAX COOKING TIME: Recipes should take no longer than {max_time} minutes to prepare, if specified.
     
-    USER REQUEST: The user is asking for a plan for {duration}. The specific request is: "{user_query}".
-
-    OUTPUT FORMAT: Return a single JSON object ONLY that conforms to the Pydantic schema:
-    {json.dumps(GroceryListResponse.schema(), indent=2)}
+    USER REQUEST: The specific request is: "{user_query}".
     
     Do not include any other commentary, preamble, or text outside of the JSON block.
     """
@@ -65,8 +70,8 @@ from pydantic import ValidationError
 
 # ...
 
-async def generate_list_from_llm(user_query: str, duration: str, context: Context) -> GroceryListResponse:
-    prompt = build_contextual_prompt(user_query, duration, context)
+async def generate_list_from_llm(user_query: str, context: Context) -> GroceryListResponse:
+    prompt = build_contextual_prompt(user_query, context)
     print("--- Prompt sent to OpenAI ---")
     print(prompt)
     print("-----------------------------")
@@ -82,6 +87,8 @@ async def generate_list_from_llm(user_query: str, duration: str, context: Contex
     )
 
     text = chat.choices[0].message.content or ""
+
+    print(text)
 
     # Parse JSON (handle occasional code fences defensively)
     try:
@@ -102,7 +109,7 @@ async def generate_list_from_llm(user_query: str, duration: str, context: Contex
 
 if __name__ == "__main__":
     # Example usage with mock data
-    user = get_full_user_with_profile_by_name("Nihalika Kaur Vohra")
+    user = get_full_user_with_profile_by_name("Nihalika Kaur")
     if user:
         user_info = parse_and_store_user_data(user)
         print("User Info:", user_info)
@@ -118,22 +125,22 @@ if __name__ == "__main__":
             # split comma/semicolon/pipe/newline
             return [s.strip() for s in re.split(r"[,\n;\|]+", str(v)) if s.strip()]
 
-        # profile = user_info.get("profile", {})
-        print(user_info.get('budget'))
+        profile = user_info.get("profile", {})
+        # print(user_info.get('budget'))
+        
         context = Context(
-            allergies=_to_str_from_list(user_info.get("allergies")), 
-            budget=user_info.get("budget"),
-            cuisines=_to_list(user_info.get("cuisine")),
-            dietary=_to_str_from_list(user_info.get("dietaryRestrictions")),  # -> "Vegan, Gluten-Free"
-            inventory=_to_list(user_info.get("inventory")),
-            nutrition=_to_list(user_info.get("nutritionalPref")),
-            max_time=user_info.get("maxTime"),
+            allergies=_to_str_from_list(profile.get("allergies")),          # 'seafood'
+            budget=profile.get("budget"),                                    # 50
+            cuisines=_to_list(profile.get("cuisine")),                       # ['italian']
+            dietary=_to_str_from_list(profile.get("dietaryRestrictions")),   # 'None'
+            inventory=_to_list(profile.get("inventory")),                    # ['potatoes','pasta','cream']
+            nutrition=_to_list(profile.get("nutritionalPref")),              # []
+            max_time=(profile.get("maxTime") or None),                       # treat 0 as unspecified
         )
         
         import asyncio
         response = asyncio.run(generate_list_from_llm(
-            user_query="I need a grocery list for the week",
-            duration="7 days",
+            user_query="I need a grocery list and a recipe to make for today use as much of my inventory as possible",
             context=context
         ))
         

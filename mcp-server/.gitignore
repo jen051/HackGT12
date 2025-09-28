@@ -1,5 +1,5 @@
 .env
-.services/__pycache__/
-.services/serviceAccountKey.json
-.models/__pycache__/
-.__pycache__/
+services/__pycache__/
+models/__pycache__/
+__pycache__/
+

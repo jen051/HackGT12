@@ -16,22 +16,19 @@ class Context(BaseModel):
 class GenerateListRequest(BaseModel):
     user_id: str
     user_query: str = Field(..., description="The user's free-form request (e.g., 'list for the week').")
-    duration: str = Field(..., description="The time period for the list (e.g., '7 days').")
     context: Context
 
 # Define the structured output the LLM must return
 class GroceryItem(BaseModel):
     item: str
     quantity: str
-    category: str
-    notes: str = ""
 
-class MealPlanItem(BaseModel):
-    day: str
-    meal: str
-    recipe_idea: str
+# class MealPlanItem(BaseModel):
+#     day: str
+#     meal: str
+#     recipe_idea: str
 
 class GroceryListResponse(BaseModel):
     estimatedTotalCost: float
-    mealPlan: List[MealPlanItem]
+    recipe: str
     groceryList: List[GroceryItem]
