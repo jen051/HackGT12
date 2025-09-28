@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, Clock, Users, ChefHat, Star, ShoppingCart, Utensils } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/firebase/config";
+import { saveRecipe, removeSavedRecipe } from "@/firebase/recipes";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface GroceryItem {
   id: string;
@@ -19,13 +22,12 @@ interface Recipe {
   id: string;
   name: string;
   description: string;
-  prepTime: number;
   cookTime: number;
   cuisine: string;
   ingredients: string[];
   instructions: string[];
   tags: string[];
-  isFavorite: boolean;
+  isFavorite?: boolean; // Made optional for compatibility with Firebase saving
   rating: number;
 }
 
@@ -42,6 +44,7 @@ export default function RecipesFromGroceryPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Mock recipes
   const mockRecipes: Recipe[] = [
@@ -49,8 +52,7 @@ export default function RecipesFromGroceryPage() {
       id: "1",
       name: "Mediterranean Chicken Bowl",
       description: "A healthy and flavorful bowl with grilled chicken, quinoa, and fresh vegetables",
-      prepTime: 15,
-      cookTime: 25,
+      cookTime: 40,
       cuisine: "Mediterranean",
       ingredients: ["Chicken", "Quinoa", "Spinach", "Broccoli", "Sweet Potatoes"],
       instructions: ["Cook stuff", "Mix together", "Serve hot"],
@@ -62,8 +64,7 @@ export default function RecipesFromGroceryPage() {
       id: "2",
       name: "Greek Yogurt Parfait",
       description: "A refreshing and protein-rich breakfast or snack",
-      prepTime: 10,
-      cookTime: 0,
+      cookTime: 10,
       cuisine: "American",
       ingredients: ["Greek Yogurt", "Bananas", "Apples", "Berries"],
       instructions: ["Layer yogurt", "Add fruit", "Drizzle honey"],
@@ -72,6 +73,19 @@ export default function RecipesFromGroceryPage() {
       rating: 4.2,
     },
   ];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        console.log("No user logged in for recipe generation.");
+        // Optionally redirect to login if no user is found
+        window.location.href = '/account';
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleGenerateRecipes = async () => {
     setIsGenerating(true);
@@ -91,12 +105,42 @@ export default function RecipesFromGroceryPage() {
     }
   };
 
-  const toggleFavorite = (recipeId: string) => {
-    setRecipes((prev) =>
-      prev.map((recipe) =>
-        recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
-      )
+  const toggleFavorite = async (recipeId: string) => {
+    if (!userId) {
+      setMessage({ type: "error", text: "User not authenticated. Please log in again." });
+      return;
+    }
+
+    const updatedRecipes = recipes.map((recipe) =>
+      recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
     );
+    setRecipes(updatedRecipes);
+
+    const favoritedRecipe = updatedRecipes.find((recipe) => recipe.id === recipeId);
+
+    if (favoritedRecipe) {
+      try {
+        if (favoritedRecipe.isFavorite) {
+          // Save to Firestore, exclude isFavorite field
+          const { isFavorite, ...recipeToSave } = favoritedRecipe;
+          await saveRecipe(userId, recipeToSave);
+          setMessage({ type: "success", text: "Recipe saved to your favorites!" });
+        } else {
+          // Remove from Firestore
+          await removeSavedRecipe(userId, recipeId);
+          setMessage({ type: "success", text: "Recipe removed from your favorites." });
+        }
+      } catch (error: any) {
+        console.error("Error updating favorite status:", error);
+        setMessage({ type: "error", text: error.message || "Failed to update favorite status." });
+        // Revert UI state if Firebase update fails
+        setRecipes((prev) =>
+          prev.map((recipe) =>
+            recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
+          )
+        );
+      }
+    }
   };
 
   const toggleItem = (id: string) => {
@@ -115,7 +159,7 @@ export default function RecipesFromGroceryPage() {
     //alert("Final grocery list saved!");
   };
 
-  const getTotalTime = (prepTime: number, cookTime: number) => prepTime + cookTime;
+  const getTotalTime = (cookTime: number) => cookTime;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 p-4">
@@ -223,7 +267,7 @@ export default function RecipesFromGroceryPage() {
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        {getTotalTime(recipe.prepTime, recipe.cookTime)} min
+                        {getTotalTime(recipe.cookTime)} min
                       </div>
                       <span className="text-sm text-gray-500">({recipe.cuisine})</span>
                     </div>

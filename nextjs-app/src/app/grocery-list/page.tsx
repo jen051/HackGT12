@@ -7,22 +7,15 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShoppingCart, DollarSign, Clock, CheckCircle, Plus, Minus } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/firebase/config";
+import { saveGroceryList } from "@/firebase/profile"; // Assuming saveGroceryList is in profile.ts
+import { onAuthStateChanged } from "firebase/auth";
 
 interface GroceryItem {
-  id: string;
   name: string;
-  category: string;
-  estimatedPrice: number;
   quantity: number;
-  unit: string;
-  isEssential: boolean;
   isSelected: boolean;
-  store?: string;
-  deal?: {
-    originalPrice: number;
-    discount: number;
-    store: string;
-  };
+  category: string;
 }
 
 export default function GroceryListPage() {
@@ -31,31 +24,42 @@ export default function GroceryListPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [budget, setBudget] = useState(75); // Mock budget from profile
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Mock grocery items based on profile preferences
   const mockGroceryItems: GroceryItem[] = [
-    { id: "1", name: "Chicken Breast", category: "Protein", estimatedPrice: 8.99, quantity: 2, unit: "lbs", isEssential: true, isSelected: true },
-    { id: "2", name: "Salmon Fillet", category: "Protein", estimatedPrice: 12.99, quantity: 1, unit: "lb", isEssential: false, isSelected: true },
-    { id: "3", name: "Greek Yogurt", category: "Dairy", estimatedPrice: 4.99, quantity: 1, unit: "container", isEssential: true, isSelected: true },
-    { id: "4", name: "Eggs", category: "Protein", estimatedPrice: 3.99, quantity: 1, unit: "dozen", isEssential: true, isSelected: true },
-    { id: "5", name: "Spinach", category: "Vegetables", estimatedPrice: 2.99, quantity: 1, unit: "bag", isEssential: true, isSelected: true },
-    { id: "6", name: "Broccoli", category: "Vegetables", estimatedPrice: 2.49, quantity: 1, unit: "head", isEssential: true, isSelected: true },
-    { id: "7", name: "Bell Peppers", category: "Vegetables", estimatedPrice: 3.99, quantity: 3, unit: "pieces", isEssential: false, isSelected: false },
-    { id: "8", name: "Sweet Potatoes", category: "Vegetables", estimatedPrice: 2.99, quantity: 3, unit: "lbs", isEssential: true, isSelected: true },
-    { id: "9", name: "Brown Rice", category: "Grains", estimatedPrice: 3.99, quantity: 1, unit: "bag", isEssential: true, isSelected: true },
-    { id: "10", name: "Quinoa", category: "Grains", estimatedPrice: 6.99, quantity: 1, unit: "bag", isEssential: false, isSelected: false },
-    { id: "11", name: "Whole Wheat Bread", category: "Grains", estimatedPrice: 2.99, quantity: 1, unit: "loaf", isEssential: true, isSelected: true },
-    { id: "12", name: "Bananas", category: "Fruits", estimatedPrice: 1.99, quantity: 1, unit: "bunch", isEssential: true, isSelected: true },
-    { id: "13", name: "Apples", category: "Fruits", estimatedPrice: 3.99, quantity: 3, unit: "lbs", isEssential: true, isSelected: true },
-    { id: "14", name: "Berries", category: "Fruits", estimatedPrice: 4.99, quantity: 1, unit: "container", isEssential: false, isSelected: false },
-    { id: "15", name: "Olive Oil", category: "Pantry", estimatedPrice: 7.99, quantity: 1, unit: "bottle", isEssential: true, isSelected: true },
-    { id: "16", name: "Garlic", category: "Pantry", estimatedPrice: 1.99, quantity: 1, unit: "head", isEssential: true, isSelected: true },
-    { id: "17", name: "Onions", category: "Pantry", estimatedPrice: 2.99, quantity: 3, unit: "lbs", isEssential: true, isSelected: true },
+    { name: "Chicken Breast", category: "Protein", quantity: 2, isSelected: true },
+    { name: "Salmon Fillet", category: "Protein", quantity: 1, isSelected: true },
+    { name: "Greek Yogurt", category: "Dairy", quantity: 1, isSelected: true },
+    { name: "Eggs", category: "Protein", quantity: 1, isSelected: true },
+    { name: "Spinach", category: "Vegetables", quantity: 1, isSelected: true },
+    { name: "Broccoli", category: "Vegetables", quantity: 1, isSelected: true },
+    { name: "Bell Peppers", category: "Vegetables", quantity: 3, isSelected: false },
+    { name: "Sweet Potatoes", category: "Vegetables", quantity: 3, isSelected: true },
+    { name: "Brown Rice", category: "Grains", quantity: 1, isSelected: true },
+    { name: "Quinoa", category: "Grains", quantity: 1, isSelected: false },
+    { name: "Whole Wheat Bread", category: "Grains", quantity: 1, isSelected: true },
+    { name: "Bananas", category: "Fruits", quantity: 1, isSelected: true },
+    { name: "Apples", category: "Fruits", quantity: 3, isSelected: true },
+    { name: "Berries", category: "Fruits", quantity: 1, isSelected: false },
+    { name: "Olive Oil", category: "Pantry", quantity: 1, isSelected: true },
+    { name: "Garlic", category: "Pantry", quantity: 1, isSelected: true },
+    { name: "Onions", category: "Pantry", quantity: 3, isSelected: true },
   ];
 
   useEffect(() => {
     // Load mock data
     setGroceryItems(mockGroceryItems);
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        console.log("No user logged in for grocery list.");
+        // Optionally redirect to login if no user is found
+        window.location.href = '/account';
+      }
+    });
 
     // Load pantry items from profile (mocked with localStorage)
     const storedProfile = localStorage.getItem("profileData");
@@ -65,6 +69,7 @@ export default function GroceryListPage() {
         setPantryItems(parsed.ingredientsYouAlreadyHave);
       }
     }
+    return () => unsubscribe();
   }, []);
 
   const handleGenerateList = async () => {
@@ -84,18 +89,18 @@ export default function GroceryListPage() {
     }
   };
 
-  const toggleItemSelection = (itemId: string) => {
+  const toggleItemSelection = (itemName: string) => {
     setGroceryItems((prev) =>
       prev.map((item) =>
-        item.id === itemId ? { ...item, isSelected: !item.isSelected } : item
+        item.name === itemName ? { ...item, isSelected: !item.isSelected } : item
       )
     );
   };
 
-  const updateQuantity = (itemId: string, change: number) => {
+  const updateQuantity = (itemName: string, change: number) => {
     setGroceryItems((prev) =>
       prev.map((item) =>
-        item.id === itemId
+        item.name === itemName
           ? { ...item, quantity: Math.max(1, item.quantity + change) }
           : item
       )
@@ -103,15 +108,14 @@ export default function GroceryListPage() {
   };
 
   const getTotalCost = () => {
-    return groceryItems
-      .filter((item) => item.isSelected)
-      .reduce((total, item) => total + item.estimatedPrice * item.quantity, 0);
+    // This will now always be 0 as estimatedPrice is removed
+    return 0;
   };
 
   const getSelectedItems = () => groceryItems.filter((item) => item.isSelected);
 
   const getItemsByCategory = () => {
-    const selected = getSelectedItems();
+    const selected = groceryItems.filter((item) => item.isSelected);
     const categories = [...new Set(selected.map((item) => item.category))];
 
     return categories.map((category) => ({
@@ -120,17 +124,27 @@ export default function GroceryListPage() {
     }));
   };
 
-  const handleProceedToRecipes = () => {
-    const selectedItems = getSelectedItems();
+  const handleProceedToRecipes = async () => {
+    const selectedItems = getSelectedItems().map(item => ({ name: item.name, quantity: item.quantity }));
     if (selectedItems.length === 0) {
       setMessage({ type: "error", text: "Please select at least one item before proceeding." });
       return;
     }
 
-    // Store selected items AND pantry items
-    localStorage.setItem("selectedGroceryItems", JSON.stringify(selectedItems));
-    localStorage.setItem("pantryItems", JSON.stringify(pantryItems));
-    window.location.href = "/recipes-from-grocery";
+    if (!userId) {
+      setMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
+      return;
+    }
+
+    try {
+      await saveGroceryList(userId, selectedItems);
+      // Store selected items AND pantry items
+      localStorage.setItem("selectedGroceryItems", JSON.stringify(selectedItems));
+      localStorage.setItem("pantryItems", JSON.stringify(pantryItems));
+      window.location.href = "/recipes-from-grocery";
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save grocery list. Please try again.' });
+    }
   };
 
   return (
@@ -240,7 +254,7 @@ export default function GroceryListPage() {
                 <div className="space-y-3">
                   {items.map((item) => (
                     <div
-                      key={item.id}
+                      key={item.name}
                       className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                         item.isSelected
                           ? "border-green-200 bg-green-50"
@@ -249,7 +263,7 @@ export default function GroceryListPage() {
                     >
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => toggleItemSelection(item.id)}
+                          onClick={() => toggleItemSelection(item.name)}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                             item.isSelected
                               ? "border-green-600 bg-green-600"
@@ -264,15 +278,15 @@ export default function GroceryListPage() {
                         <div>
                           <h4 className="font-medium">{item.name}</h4>
                           <p className="text-sm text-gray-600">
-                            ${item.estimatedPrice.toFixed(2)} per {item.unit}
+                            Category: {item.category}
                           </p>
                         </div>
 
-                        {item.isEssential && (
+                        {/* {item.isEssential && (
                           <Badge className="bg-yellow-100 text-yellow-800">
                             Essential
                           </Badge>
-                        )}
+                        )} */}
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -280,7 +294,7 @@ export default function GroceryListPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.id, -1)}
+                            onClick={() => updateQuantity(item.name, -1)}
                             disabled={item.quantity <= 1}
                           >
                             <Minus className="w-3 h-3" />
@@ -289,17 +303,17 @@ export default function GroceryListPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.id, 1)}
+                            onClick={() => updateQuantity(item.name, 1)}
                           >
                             <Plus className="w-3 h-3" />
                           </Button>
                         </div>
 
-                        <div className="text-right">
+                        {/* <div className="text-right">
                           <p className="font-medium">
                             ${(item.estimatedPrice * item.quantity).toFixed(2)}
                           </p>
-                        </div>
+                        </div> */}
                       </div>
                     </div>
                   ))}

@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DollarSign, Heart, Globe, Utensils, X, ShoppingCart } from "lucide-react";
+import { DollarSign, Heart, Globe, Utensils, X, ShoppingCart, Clock } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/firebase/config";
 import { updateUserProfile } from "@/firebase/profile";
 import { onAuthStateChanged } from "firebase/auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProfileSetupPage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -23,6 +24,9 @@ export default function ProfileSetupPage() {
     allergies: [] as string[],
     cuisinePreferences: [] as string[],
     nutritionGoals: [] as string[],
+    // mealFrequency: "",
+    // cookingSkill: "",
+    maxTime: "", // Added maxTime
     ingredientsYouAlreadyHave: [] as string[],
   });
 
@@ -88,7 +92,7 @@ export default function ProfileSetupPage() {
   };
 
   const handleNext = () => {
-    if (currentStep < 5) {
+    if (currentStep < 6) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -106,28 +110,16 @@ export default function ProfileSetupPage() {
     }
 
     try {
-<<<<<<< HEAD
-      // ✅ Persist the full profile so GroceryListPage can read pantry items
-      localStorage.setItem("profileData", JSON.stringify(profileData));
-
+      await updateUserProfile(userId, profileData);
       setMessage({
         type: "success",
         text: "Profile saved successfully! Redirecting to grocery list generator...",
       });
-=======
-      await updateUserProfile(userId, profileData);
-      setMessage({ type: 'success', text: 'Profile saved successfully! Redirecting to grocery list generator...' });
->>>>>>> 6b729a9bca69b5f466cfb9b81920ca30dfedc834
       setTimeout(() => {
         window.location.href = "/grocery-list";
       }, 2000);
-<<<<<<< HEAD
-    } catch (error) {
-      setMessage({ type: "error", text: "Failed to save profile. Please try again." });
-=======
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to save profile. Please try again.' });
->>>>>>> 6b729a9bca69b5f466cfb9b81920ca30dfedc834
+      setMessage({ type: "error", text: error.message || "Failed to save profile. Please try again." });
     }
   };
 
@@ -232,6 +224,28 @@ export default function ProfileSetupPage() {
         return (
           <div className="space-y-6">
             <div className="text-center">
+              <Clock className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Cooking Time Preference</h3>
+              <p className="text-gray-600">What's the maximum time you're willing to spend cooking per meal?</p>
+            </div>
+            <div>
+              <Label htmlFor="maxTime">Max Cooking Time (minutes)</Label>
+              <Input
+                id="maxTime"
+                type="number"
+                value={profileData.maxTime}
+                onChange={(e) => handleInputChange("maxTime", e.target.value)}
+                placeholder="e.g., 30, 60, 90"
+                min="0"
+              />
+            </div>
+          </div>
+        );
+
+      case 5:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
               <Utensils className="w-12 h-12 text-green-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Nutrition Goals</h3>
               <p className="text-gray-600">Help us personalize your meal recommendations</p>
@@ -252,10 +266,42 @@ export default function ProfileSetupPage() {
                 ))}
               </div>
             </div>
+{/* 
+            <div>
+              <Label>Meal Frequency</Label>
+              <Select value={profileData.mealFrequency} onValueChange={(value) => handleInputChange("mealFrequency", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="How many meals do you cook per week?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1-3">1-3 meals per week</SelectItem>
+                  <SelectItem value="4-7">4-7 meals per week</SelectItem>
+                  <SelectItem value="8-14">8-14 meals per week</SelectItem>
+                  <SelectItem value="15-21">15-21 meals per week</SelectItem>
+                  <SelectItem value="all">All meals</SelectItem>
+                </SelectContent>
+              </Select>
+            </div> */}
+
+            {/* <div>
+              <Label>Cooking Skill Level</Label>
+              <Select value={profileData.cookingSkill} onValueChange={(value) => handleInputChange("cookingSkill", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="What's your cooking experience?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner - Simple recipes</SelectItem>
+                  <SelectItem value="intermediate">Intermediate - Some experience</SelectItem>
+                  <SelectItem value="advanced">Advanced - Comfortable with complex recipes</SelectItem>
+                  <SelectItem value="expert">Expert - Love challenging recipes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div> */}
+
           </div>
         );
 
-      case 5:
+      case 6:
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -342,13 +388,13 @@ export default function ProfileSetupPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Step {currentStep} of 5</span>
-            <span className="text-sm text-gray-600">{Math.round((currentStep / 5) * 100)}% Complete</span>
+            <span className="text-sm text-gray-600">Step {currentStep} of 6</span>
+            <span className="text-sm text-gray-600">{Math.round((currentStep / 6) * 100)}% Complete</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-green-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / 5) * 100}%` }}
+              style={{ width: `${(currentStep / 6) * 100}%` }}
             />
           </div>
         </div>
@@ -364,7 +410,7 @@ export default function ProfileSetupPage() {
             Previous
           </Button>
 
-          {currentStep < 5 ? (
+          {currentStep < 6 ? (
             <Button onClick={handleNext} className="bg-green-600 hover:bg-green-700">
               Next
             </Button>

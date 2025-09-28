@@ -35,6 +35,10 @@ export async function signUp(email: string, password: string, name: string = "")
       createdAt: serverTimestamp(),
       items: []
     }); // Can be empty or have initial fields
+
+    // Create empty savedRecipes subcollection with an initial empty document
+    // const savedRecipesCollectionRef = collection(userDocRef, "savedRecipes");
+    // await setDoc(doc(savedRecipesCollectionRef, "initial"), {}); // Placeholder document
   }
 
   return user;
