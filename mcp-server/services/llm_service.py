@@ -133,13 +133,15 @@ def create_context_from_profile(profile: Dict[str, Any]) -> Context:
     )
 
 def get_response(username:str, user_query:str) -> GroceryListResponse:
+    print(username)
+    print(user_query)
     user = get_full_user_with_profile_by_name(username)
     if not user:
         raise ValueError(f"User '{username}' not found.")
     user_info = parse_and_store_user_data(user)
     profile = user_info.get("profile", {})
     context = create_context_from_profile(profile)
-    
+    print(context)
     response = asyncio.run(generate_list_from_llm(
         user_query=user_query,
         context=context
@@ -152,8 +154,8 @@ def add_is_selected_flag(payload: Dict[str, Any]) -> Dict[str, Any]:
   data["groceryList"] = [{**it, "isSelected": True} for it in items]
   return data
 
-if __name__ == "__main__":
-    response = get_response("Nihalika", "Generate one recipe")
+def get_final_response( username:str, user_query:str) -> Dict[str, Any]:
+    response = get_response(username, user_query)
     response_json = response.model_dump()  # Pydantic v2
-    print(add_is_selected_flag(response_json))
+    return (add_is_selected_flag(response_json))
     
