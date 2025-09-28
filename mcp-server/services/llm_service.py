@@ -1,6 +1,7 @@
 # /mcp-server/services/llm_service.py
+from copy import deepcopy
 from models.schema import Context, GroceryListResponse
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pathlib import Path
 from dotenv import load_dotenv
 import json
@@ -9,6 +10,8 @@ import re
 # from google import genai # Uncomment for real Gemini API integration
 from openai import OpenAI
 from .fetch_data import get_full_user_with_profile_by_name, parse_and_store_user_data
+import asyncio
+
 
 # Note: In a real app, initialize the client here using os.getenv("GEMINI_API_KEY")
 # os.getenv("OPENAI_API_KEY")
@@ -46,7 +49,8 @@ def build_contextual_prompt(user_query: str, context: Context) -> str:
     - recipe: string
     - groceryList: array of objects with keys:
       - item: string
-      - quantity: string
+      - category: string (one of: Protein, Dairy, Vegetables, Grains, Fruits, Pantry)
+      - quantity: int
         
     STRICT CONSTRAINTS (sourced directly from the user's database preferences):
     1. DIETARY RESTRICTION: The entire plan must be strictly no "{dietary}". If no dietary restrictions, consider all options.
@@ -87,7 +91,6 @@ async def generate_list_from_llm(user_query: str, context: Context) -> GroceryLi
     )
 
     text = chat.choices[0].message.content or ""
-
     print(text)
 
     # Parse JSON (handle occasional code fences defensively)
@@ -106,44 +109,51 @@ async def generate_list_from_llm(user_query: str, context: Context) -> GroceryLi
     except ValidationError as e:
         print("Schema validation failed. Raw LLM output:\n", text)
         raise
-
-if __name__ == "__main__":
-    # Example usage with mock data
-    user = get_full_user_with_profile_by_name("Nihalika Kaur")
-    if user:
-        user_info = parse_and_store_user_data(user)
-        print("User Info:", user_info)
-        
-        def _to_str_from_list(v, default="None"):
+    
+# helper functions
+def _to_str_from_list(v, default="None"):
           if v is None: return default
           if isinstance(v, list): return ", ".join(map(str, v))
           return str(v)
 
-        def _to_list(v):
+def _to_list(v):
             if v is None: return []
             if isinstance(v, list): return v
-            # split comma/semicolon/pipe/newline
             return [s.strip() for s in re.split(r"[,\n;\|]+", str(v)) if s.strip()]
 
-        profile = user_info.get("profile", {})
-        # print(user_info.get('budget'))
-        
-        context = Context(
-            allergies=_to_str_from_list(profile.get("allergies")),          # 'seafood'
-            budget=profile.get("budget"),                                    # 50
-            cuisines=_to_list(profile.get("cuisine")),                       # ['italian']
-            dietary=_to_str_from_list(profile.get("dietaryRestrictions")),   # 'None'
-            inventory=_to_list(profile.get("inventory")),                    # ['potatoes','pasta','cream']
-            nutrition=_to_list(profile.get("nutritionalPref")),              # []
-            max_time=(profile.get("maxTime") or None),                       # treat 0 as unspecified
-        )
-        
-        import asyncio
-        response = asyncio.run(generate_list_from_llm(
-            user_query="I need a grocery list and a recipe to make for today use as much of my inventory as possible",
-            context=context
-        ))
-        
-        print("LLM Response:", response)
-    else:
-        print("User not found.")
+def create_context_from_profile(profile: Dict[str, Any]) -> Context:
+    return Context(
+        allergies=_to_str_from_list(profile.get("allergies")),          # 'seafood'
+        budget=profile.get("budget"),                                    # 50
+        cuisines=_to_list(profile.get("cuisine")),                       # ['italian']
+        dietary=_to_str_from_list(profile.get("dietaryRestrictions")),   # 'None'
+        inventory=_to_list(profile.get("inventory")),                    # ['potatoes','pasta','cream']
+        nutrition=_to_list(profile.get("nutritionalPref")),              # []
+        max_time=(profile.get("maxTime") or None),                       # treat 0 as unspecified
+    )
+
+def get_response(username:str, user_query:str) -> GroceryListResponse:
+    user = get_full_user_with_profile_by_name(username)
+    if not user:
+        raise ValueError(f"User '{username}' not found.")
+    user_info = parse_and_store_user_data(user)
+    profile = user_info.get("profile", {})
+    context = create_context_from_profile(profile)
+    
+    response = asyncio.run(generate_list_from_llm(
+        user_query=user_query,
+        context=context
+    ))
+    return response
+
+def add_is_selected_flag(payload: Dict[str, Any]) -> Dict[str, Any]:
+  data = deepcopy(payload)
+  items: List[Dict[str, Any]] = data.get("groceryList", [])
+  data["groceryList"] = [{**it, "isSelected": True} for it in items]
+  return data
+
+if __name__ == "__main__":
+    response = get_response("Nihalika", "Generate one recipe")
+    response_json = response.model_dump()  # Pydantic v2
+    print(add_is_selected_flag(response_json))
+    

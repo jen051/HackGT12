@@ -1,4 +1,5 @@
 # /mcp-server/models/schemas.py
+from enum import Enum
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 
@@ -18,15 +19,19 @@ class GenerateListRequest(BaseModel):
     user_query: str = Field(..., description="The user's free-form request (e.g., 'list for the week').")
     context: Context
 
-# Define the structured output the LLM must return
+class Category(str, Enum):
+    PROTEIN = "Protein"
+    DAIRY = "Dairy"
+    VEGETABLES = "Vegetables"
+    GRAINS = "Grains"
+    FRUITS = "Fruits"
+    PANTRY = "Pantry"
+
 class GroceryItem(BaseModel):
     item: str
-    quantity: str
+    quantity: int
+    category: Category
 
-# class MealPlanItem(BaseModel):
-#     day: str
-#     meal: str
-#     recipe_idea: str
 
 class GroceryListResponse(BaseModel):
     estimatedTotalCost: float
