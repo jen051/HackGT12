@@ -12,7 +12,7 @@ import { saveGroceryList } from "@/firebase/profile"; // Assuming saveGroceryLis
 import { onAuthStateChanged } from "firebase/auth";
 
 interface GroceryItem {
-  name: string;
+  item: string;
   quantity: number;
   isSelected: boolean;
   category: string;
@@ -26,31 +26,9 @@ export default function GroceryListPage() {
   const [budget, setBudget] = useState(75); // Mock budget from profile
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Mock grocery items based on profile preferences
-  const mockGroceryItems: GroceryItem[] = [
-    { name: "Chicken Breast", category: "Protein", quantity: 2, isSelected: true },
-    { name: "Salmon Fillet", category: "Protein", quantity: 1, isSelected: true },
-    { name: "Greek Yogurt", category: "Dairy", quantity: 1, isSelected: true },
-    { name: "Eggs", category: "Protein", quantity: 1, isSelected: true },
-    { name: "Spinach", category: "Vegetables", quantity: 1, isSelected: true },
-    { name: "Broccoli", category: "Vegetables", quantity: 1, isSelected: true },
-    { name: "Bell Peppers", category: "Vegetables", quantity: 3, isSelected: false },
-    { name: "Sweet Potatoes", category: "Vegetables", quantity: 3, isSelected: true },
-    { name: "Brown Rice", category: "Grains", quantity: 1, isSelected: true },
-    { name: "Quinoa", category: "Grains", quantity: 1, isSelected: false },
-    { name: "Whole Wheat Bread", category: "Grains", quantity: 1, isSelected: true },
-    { name: "Bananas", category: "Fruits", quantity: 1, isSelected: true },
-    { name: "Apples", category: "Fruits", quantity: 3, isSelected: true },
-    { name: "Berries", category: "Fruits", quantity: 1, isSelected: false },
-    { name: "Olive Oil", category: "Pantry", quantity: 1, isSelected: true },
-    { name: "Garlic", category: "Pantry", quantity: 1, isSelected: true },
-    { name: "Onions", category: "Pantry", quantity: 3, isSelected: true },
-  ];
+  // No more hardcoded mock data - will be populated from API
 
   useEffect(() => {
-    // Load mock data
-    setGroceryItems(mockGroceryItems);
-
     // Load user profile data from API
     const loadUserProfile = async () => {
       try {
@@ -180,10 +158,26 @@ export default function GroceryListPage() {
         setPantryItems(inventoryItems);
       }
 
-      setMessage({
-        type: "success",
-        text: "Grocery list generated successfully based on your profile! You can now customize it before proceeding to recipes.",
-      });
+      // Extract and set the generated grocery list from API response
+      if (userData.groceryList?.groceryList && Array.isArray(userData.groceryList.groceryList)) {
+        const generatedItems = userData.groceryList.groceryList.map((item: any) => ({
+          item: item.item || item.name || '',
+          quantity: Number(item.quantity || 1),
+          category: item.category || '',
+          isSelected: Boolean(item.isSelected !== false), // Default to true if not specified
+        }));
+        setGroceryItems(generatedItems);
+        
+        setMessage({
+          type: "success",
+          text: "Grocery list generated successfully based on your profile! You can now customize it before proceeding to recipes.",
+        });
+      } else {
+        setMessage({
+          type: "error",
+          text: "No grocery list was generated. Please try again or check your profile setup.",
+        });
+      }
     } catch (error) {
       console.error('Error generating grocery list:', error);
       setMessage({ 
@@ -198,7 +192,7 @@ export default function GroceryListPage() {
   const toggleItemSelection = (itemName: string) => {
     setGroceryItems((prev) =>
       prev.map((item) =>
-        item.name === itemName ? { ...item, isSelected: !item.isSelected } : item
+        item.item === itemName ? { ...item, isSelected: !item.isSelected } : item
       )
     );
   };
@@ -206,7 +200,7 @@ export default function GroceryListPage() {
   const updateQuantity = (itemName: string, change: number) => {
     setGroceryItems((prev) =>
       prev.map((item) =>
-        item.name === itemName
+        item.item === itemName
           ? { ...item, quantity: Math.max(1, item.quantity + change) }
           : item
       )
@@ -231,7 +225,7 @@ export default function GroceryListPage() {
   };
 
   const handleProceedToRecipes = async () => {
-    const selectedItems = getSelectedItems().map(item => ({ name: item.name, quantity: item.quantity }));
+    const selectedItems = getSelectedItems().map(item => ({ name: item.item, quantity: item.quantity }));
     if (selectedItems.length === 0) {
       setMessage({ type: "error", text: "Please select at least one item before proceeding." });
       return;
@@ -360,7 +354,7 @@ export default function GroceryListPage() {
                 <div className="space-y-3">
                   {items.map((item) => (
                     <div
-                      key={item.name}
+                      key={item.item}
                       className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
                         item.isSelected
                           ? "border-green-200 bg-green-50"
@@ -369,7 +363,7 @@ export default function GroceryListPage() {
                     >
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => toggleItemSelection(item.name)}
+                          onClick={() => toggleItemSelection(item.item)}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
                             item.isSelected
                               ? "border-green-600 bg-green-600"
@@ -382,7 +376,7 @@ export default function GroceryListPage() {
                         </button>
 
                         <div>
-                          <h4 className="font-medium">{item.name}</h4>
+                          <h4 className="font-medium">{item.item}</h4>
                           <p className="text-sm text-gray-600">
                             Category: {item.category}
                           </p>
@@ -400,7 +394,7 @@ export default function GroceryListPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.name, -1)}
+                            onClick={() => updateQuantity(item.item, -1)}
                             disabled={item.quantity <= 1}
                           >
                             <Minus className="w-3 h-3" />
@@ -409,7 +403,7 @@ export default function GroceryListPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item.name, 1)}
+                            onClick={() => updateQuantity(item.item, 1)}
                           >
                             <Plus className="w-3 h-3" />
                           </Button>

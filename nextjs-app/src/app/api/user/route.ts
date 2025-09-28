@@ -78,9 +78,6 @@ interface GroceryListResponse {
     item: string;
     quantity: number;
     category: string;
-    estimatedPrice?: number;
-    unit?: string;
-    isEssential?: boolean;
     isSelected?: boolean;
   }>;
 }
@@ -89,20 +86,25 @@ interface GroceryListResponse {
 async function generateGroceryList(profileData: UserProfile, userQuery: string = 'Generate a weekly grocery list based on my profile preferences'): Promise<GroceryListResponse | null> {
   try {
     const prompt = `
-    You are an expert nutritional meal and grocery list planner.
-    Generate a comprehensive grocery list and meal plan in JSON format.
+    You are tasked with generating a grocery list that strictly follows the user’s preferences. 
 
-    OUTPUT SHAPE (exact keys and types):
-    - estimatedTotalCost: number
-    - recipe: string (detailed recipe instructions)
-    - groceryList: array of objects with keys:
-      - item: string
-      - quantity: number
-      - category: string (one of: Protein, Dairy, Vegetables, Grains, Fruits, Pantry)
-      - estimatedPrice: number (estimated price per unit)
-      - unit: string (unit of measurement)
-      - isEssential: boolean (whether this is an essential item)
-      - isSelected: boolean (default to true)
+The list must:
+- Only include items that fit the user’s dietary restrictions, cuisine preferences, nutrition goals, and budget.
+- Output in valid JSON-like JavaScript array syntax.
+- Each grocery item must include: name, category, quantity, and isSelected.
+- \`isSelected\` must ALWAYS be true for every item.
+- Categories can only be one of: "Protein", "Vegetables", "Dairy", "Pantry", "Fruits", "Grains".
+- No explanations, no extra text, no comments, no markdown formatting — only the array.
+
+Example format (do not copy, just follow the structure). Do not include anything extra likeisEssential, unit, estimatedPrice.
+
+[
+  { name: "Chicken Breast", category: "Protein", quantity: 2, isSelected: true },
+  { name: "Spinach", category: "Vegetables", quantity: 1, isSelected: true },
+  { name: "Brown Rice", category: "Grains", quantity: 1, isSelected: true }
+]
+
+Now generate the grocery list based on this user profile:
 
     STRICT CONSTRAINTS (sourced directly from the user's database preferences):
     1. DIETARY RESTRICTION: The entire plan must be strictly no "${profileData.dietaryRestrictions?.join(', ') || 'None'}". If no dietary restrictions, consider all options.
@@ -113,10 +115,9 @@ async function generateGroceryList(profileData: UserProfile, userQuery: string =
     6. NUTRITION: Prioritize these nutritional preferences: ${profileData.nutritionalPref?.join(', ') || 'None'}.
     7. ALLERGIES: Absolutely avoid any ingredients that may contain or be cross-contaminated with: ${profileData.allergies?.join(', ') || 'None'}.
     8. MAX COOKING TIME: Recipes should take no longer than ${profileData.maxTime || 60} minutes to prepare.
+  
     
-    USER REQUEST: The specific request is: "${userQuery}".
-    
-    Do not include any other commentary, preamble, or text outside of the JSON block.
+    Do not include any other commentary, preamble, or text outside of the JSON block. Follow the format specified and only include name, quantity, category and isSelected.
     `;
 
     const completion = await openai.chat.completions.create({
@@ -139,18 +140,29 @@ async function generateGroceryList(profileData: UserProfile, userQuery: string =
 
     const parsedResponse = JSON.parse(responseText);
     
-    // Add isSelected flag to all grocery items
-    if (parsedResponse.groceryList && Array.isArray(parsedResponse.groceryList)) {
-      parsedResponse.groceryList = parsedResponse.groceryList.map((item: any) => ({
-        ...item,
-        isSelected: true,
-        isEssential: item.isEssential || false,
-        unit: item.unit || 'piece',
-        estimatedPrice: item.estimatedPrice || 0
-      }));
-    }
+    // Extract grocery list from the response
+    const groceryList = Array.isArray(parsedResponse) 
+      ? parsedResponse 
+      : Array.isArray(parsedResponse.groceryList) 
+      ? parsedResponse.groceryList 
+      : [];
 
-    return parsedResponse as GroceryListResponse;
+    // Format the grocery list with proper defaults
+    const formattedGroceryList = groceryList.map((item: any) => ({
+      item: item.name || item.item || '',
+      quantity: Number(item.quantity || 0),
+      category: item.category || '',
+      isSelected: true,
+    }));
+
+    // Create the response object
+    const groceryListResponse: GroceryListResponse = {
+      estimatedTotalCost: parsedResponse.estimatedTotalCost || 0,
+      recipe: parsedResponse.recipe || '',
+      groceryList: formattedGroceryList,
+    };
+
+    return groceryListResponse;
   } catch (error) {
     console.error('Error generating grocery list with OpenAI:', error);
     return null;
@@ -444,3 +456,4 @@ export async function DELETE(request: Request) {
     );
   }
 }
+
