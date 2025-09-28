@@ -24,20 +24,43 @@ export async function updateUserProfile(uid: string, profileData: any) {
     }
   }
 
-  // Add meal frequency and cooking skill if they exist
-//   if (profileData.mealFrequency) {
-//     updatePayload.mealFrequency = profileData.mealFrequency;
-//   }
+  // Convert maxTime to number if it exists and is a valid number
+  if (profileData.maxTime) {
+    const maxTime = parseInt(profileData.maxTime);
+    if (!isNaN(maxTime)) {
+      updatePayload.maxTime = maxTime;
+    }
+  }
 
-//   if (profileData.cookingSkill) {
-//     updatePayload.cookingSkill = profileData.cookingSkill;
-//   }
+  // Convert ingredientsYouAlreadyHave (inventory) to a comma-separated string
+  if (profileData.ingredientsYouAlreadyHave && Array.isArray(profileData.ingredientsYouAlreadyHave)) {
+    updatePayload.inventory = profileData.ingredientsYouAlreadyHave.join(", ");
+  }
 
   try {
     await updateDoc(userProfileDocRef, updatePayload);
     console.log("User profile updated successfully!");
   } catch (error) {
     console.error("Error updating user profile:", error);
+    throw error;
+  }
+}
+
+export async function saveGroceryList(uid: string, groceryItems: Array<{ name: string; quantity: number }>) {
+  if (!uid) {
+    console.error("User UID is required to save grocery list.");
+    throw new Error("User not authenticated.");
+  }
+
+  const groceryListDocRef = doc(db, "users", uid, "groceryList", "listData");
+
+  try {
+    await updateDoc(groceryListDocRef, {
+      items: groceryItems,
+    });
+    console.log("Grocery list updated successfully!");
+  } catch (error) {
+    console.error("Error updating grocery list:", error);
     throw error;
   }
 }

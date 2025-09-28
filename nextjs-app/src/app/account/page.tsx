@@ -8,16 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { signIn, signUp } from "@/firebase/auth";
+import { signIn } from "@/firebase/auth"; // Only signIn is needed here
 
 export default function AccountPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
-    confirmPassword: ""
   });
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -33,33 +30,12 @@ export default function AccountPage() {
     e.preventDefault();
     setMessage(null);
 
-    if (!isLogin) {
-      if (formData.password !== formData.confirmPassword) {
-        setMessage({ type: 'error', text: 'Passwords do not match' });
-        return;
-      }
-      if (formData.password.length < 6) {
-        setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
-        return;
-      }
-    }
-
     try {
-      if (isLogin) {
-        await signIn(formData.email, formData.password);
-        setMessage({ type: 'success', text: 'Login successful! Redirecting to dashboard...' });
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 2000);
-      } else {
-        await signUp(formData.email, formData.password, formData.name);
-        setMessage({ type: 'success', text: 'Account created successfully! Please fill in your profile information.' });
-        // setIsLogin(true);
-        // setFormData({ name: "", email: "", password: "", confirmPassword: "" });
-        setTimeout(() => {
-          window.location.href = '/profile-setup';
-        }, 2000);
-      }
+      await signIn(formData.email, formData.password);
+      setMessage({ type: 'success', text: 'Login successful! Redirecting to dashboard...' });
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 2000);
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'An error occurred. Please try again.' });
     }
@@ -73,32 +49,14 @@ export default function AccountPage() {
             <User className="w-6 h-6 text-green-600" />
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            Welcome Back
           </CardTitle>
           <CardDescription>
-            {isLogin 
-              ? 'Sign in to your NutriCare account' 
-              : 'Join NutriCare to start your healthy journey'
-            }
+            Sign in to your NutriCare account
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                  required={!isLogin}
-                />
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -140,25 +98,6 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    placeholder="Confirm your password"
-                    className="pl-10"
-                    required={!isLogin}
-                  />
-                </div>
-              </div>
-            )}
-
             {message && (
               <Alert className={message.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
                 <AlertDescription className={message.type === 'error' ? 'text-red-800' : 'text-green-800'}>
@@ -168,23 +107,20 @@ export default function AccountPage() {
             )}
 
             <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
-              {isLogin ? 'Sign In' : 'Create Account'}
+              Sign In
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setMessage(null);
-                  setFormData({ name: "", email: "", password: "", confirmPassword: "" });
-                }}
-                className="ml-1 text-green-600 hover:text-green-700 font-medium"
-              >
-                {isLogin ? 'Sign up' : 'Sign in'}
-              </button>
+              Don't have an account?
+              <Link href="/profile-setup">
+                <button
+                  className="ml-1 text-green-600 hover:text-green-700 font-medium"
+                >
+                  Sign up
+                </button>
+              </Link>
             </p>
           </div>
 

@@ -1,28 +1,43 @@
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+
+interface UserData {
+  email: string;
+  name: string;
+}
+
 export class User {
   static email: string = "user@example.com";
-  static name: string = "Health User";
+  static defaultName: string = "Health User";
 
-  static async me(): Promise<User> {
-    // Mock implementation - in a real app, this would fetch from an API
-    return {
-      email: this.email,
-      name: this.name,
-    };
+  static async me(): Promise<UserData> {
+    return new Promise((resolve, reject) => {
+      const auth = getAuth();
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          resolve({
+            email: user.email || "",
+            name: user.displayName || "Health User",
+          });
+        } else {
+          reject(new Error("No user logged in."));
+        }
+      });
+    });
   }
 
-  static async create(data: Partial<User>): Promise<User> {
+  static async create(data: Partial<UserData>): Promise<UserData> {
     // Mock implementation
     return {
       email: data.email || this.email,
-      name: data.name || this.name,
+      name: data.name || this.defaultName,
     };
   }
 
-  static async update(id: string, data: Partial<User>): Promise<User> {
+  static async update(id: string, data: Partial<UserData>): Promise<UserData> {
     // Mock implementation
     return {
       email: data.email || this.email,
-      name: data.name || this.name,
+      name: data.name || this.defaultName,
     };
   }
 
@@ -31,11 +46,11 @@ export class User {
     return true;
   }
 
-  static async list(): Promise<User[]> {
+  static async list(): Promise<UserData[]> {
     // Mock implementation
     return [{
       email: this.email,
-      name: this.name,
+      name: this.defaultName,
     }];
   }
 }

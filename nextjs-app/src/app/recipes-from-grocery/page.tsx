@@ -7,41 +7,36 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, Clock, Users, ChefHat, Star, ShoppingCart, Utensils } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/firebase/config";
+import { saveRecipe, removeSavedRecipe } from "@/firebase/recipes";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, collection } from "firebase/firestore";
+import { db } from "@/firebase/config";
 
 interface GroceryItem {
-  id: string;
   name: string;
-  quantity: string;
-  isSelected: boolean;
+  quantity: number;
 }
 
 interface Recipe {
   id: string;
   name: string;
   description: string;
-  prepTime: number;
   cookTime: number;
   cuisine: string;
   ingredients: string[];
   instructions: string[];
   tags: string[];
-  isFavorite: boolean;
+  isFavorite?: boolean; // Made optional for compatibility with Firebase saving
   rating: number;
 }
 
 export default function RecipesFromGroceryPage() {
-  // Mock grocery items
-  const initialItems: GroceryItem[] = [
-    { id: "1", name: "Tomato", quantity: "3", isSelected: true },
-    { id: "2", name: "Milk", quantity: "1", isSelected: true },
-    { id: "3", name: "Bread", quantity: "2", isSelected: true },
-  ];
-
-  const [selectedItems, setSelectedItems] = useState<GroceryItem[]>(initialItems);
+  const [selectedItems, setSelectedItems] = useState<GroceryItem[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [isDone, setIsDone] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Mock recipes
   const mockRecipes: Recipe[] = [
@@ -49,8 +44,7 @@ export default function RecipesFromGroceryPage() {
       id: "1",
       name: "Mediterranean Chicken Bowl",
       description: "A healthy and flavorful bowl with grilled chicken, quinoa, and fresh vegetables",
-      prepTime: 15,
-      cookTime: 25,
+      cookTime: 40,
       cuisine: "Mediterranean",
       ingredients: ["Chicken", "Quinoa", "Spinach", "Broccoli", "Sweet Potatoes"],
       instructions: ["Cook stuff", "Mix together", "Serve hot"],
@@ -62,8 +56,7 @@ export default function RecipesFromGroceryPage() {
       id: "2",
       name: "Greek Yogurt Parfait",
       description: "A refreshing and protein-rich breakfast or snack",
-      prepTime: 10,
-      cookTime: 0,
+      cookTime: 10,
       cuisine: "American",
       ingredients: ["Greek Yogurt", "Bananas", "Apples", "Berries"],
       instructions: ["Layer yogurt", "Add fruit", "Drizzle honey"],
@@ -72,6 +65,38 @@ export default function RecipesFromGroceryPage() {
       rating: 4.2,
     },
   ];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        fetchGroceryList(user.uid);
+      } else {
+        console.log("No user logged in for recipe generation.");
+        window.location.href = '/account';
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const fetchGroceryList = async (uid: string) => {
+    try {
+      const groceryListDocRef = doc(db, "users", uid, "groceryList", "listData");
+      const docSnap = await getDoc(groceryListDocRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.items)) {
+          setSelectedItems(data.items as GroceryItem[]);
+        }
+      } else {
+        console.log("No grocery list found!");
+        setSelectedItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching grocery list:", error);
+      setMessage({ type: "error", text: "Failed to load grocery list." });
+    }
+  };
 
   const handleGenerateRecipes = async () => {
     setIsGenerating(true);
@@ -91,31 +116,61 @@ export default function RecipesFromGroceryPage() {
     }
   };
 
-  const toggleFavorite = (recipeId: string) => {
-    setRecipes((prev) =>
-      prev.map((recipe) =>
-        recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
-      )
+  const toggleFavorite = async (recipeId: string) => {
+    if (!userId) {
+      setMessage({ type: "error", text: "User not authenticated. Please log in again." });
+      return;
+    }
+
+    const updatedRecipes = recipes.map((recipe) =>
+      recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
     );
+    setRecipes(updatedRecipes);
+
+    const favoritedRecipe = updatedRecipes.find((recipe) => recipe.id === recipeId);
+
+    if (favoritedRecipe) {
+      try {
+        if (favoritedRecipe.isFavorite) {
+          // Save to Firestore, exclude isFavorite field
+          const { isFavorite, ...recipeToSave } = favoritedRecipe;
+          await saveRecipe(userId, recipeToSave);
+          setMessage({ type: "success", text: "Recipe saved to your favorites!" });
+        } else {
+          // Remove from Firestore
+          await removeSavedRecipe(userId, recipeId);
+          setMessage({ type: "success", text: "Recipe removed from your favorites." });
+        }
+      } catch (error: any) {
+        console.error("Error updating favorite status:", error);
+        setMessage({ type: "error", text: error.message || "Failed to update favorite status." });
+        // Revert UI state if Firebase update fails
+        setRecipes((prev) =>
+          prev.map((recipe) =>
+            recipe.id === recipeId ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe
+          )
+        );
+      }
+    }
   };
 
-  const toggleItem = (id: string) => {
-    if (isDone) return; // disable after done
-    setSelectedItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isSelected: !item.isSelected } : item
-      )
-    );
-  };
+  // const toggleItem = (id: string) => {
+  //   if (isDone) return; // disable after done
+  //   setSelectedItems((prev) =>
+  //     prev.map((item) =>
+  //       item.id === id ? { ...item, isSelected: !item.isSelected } : item
+  //     )
+  //   );
+  // };
 
-  const handleDone = () => {
-    setIsDone(true);
-    const finalList = selectedItems.filter((item) => item.isSelected);
-    localStorage.setItem("finalGroceryList", JSON.stringify(finalList));
-    //alert("Final grocery list saved!");
-  };
+  // const handleDone = () => {
+  //   setIsDone(true);
+  //   const finalList = selectedItems.filter((item) => item.isSelected);
+  //   localStorage.setItem("finalGroceryList", JSON.stringify(finalList));
+  //   //alert("Final grocery list saved!");
+  // };
 
-  const getTotalTime = (prepTime: number, cookTime: number) => prepTime + cookTime;
+  const getTotalTime = (cookTime: number) => cookTime;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 p-4">
@@ -138,23 +193,18 @@ export default function RecipesFromGroceryPage() {
             <div className="flex flex-wrap gap-2">
               {selectedItems.map((item) => (
                 <Badge
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
-                  className={`cursor-pointer ${
-                    item.isSelected
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-200 text-gray-500 line-through"
-                  }`}
+                  key={item.name}
+                  className="bg-green-100 text-green-800"
                 >
                   {item.name} ({item.quantity})
                 </Badge>
               ))}
             </div>
-            <div className="text-center mt-4">
+            {/* <div className="text-center mt-4">
               <Button onClick={handleDone} disabled={isDone} className="bg-green-600 hover:bg-green-700">
                 {isDone ? "Done ✔️" : "Finalize List"}
               </Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 
@@ -162,7 +212,7 @@ export default function RecipesFromGroceryPage() {
         <div className="text-center mb-6">
           <Button
             onClick={handleGenerateRecipes}
-            disabled={isGenerating || selectedItems.filter((i) => i.isSelected).length === 0}
+            disabled={isGenerating || selectedItems.filter((i) => i.quantity > 0).length === 0}
             className="bg-green-600 hover:bg-green-700"
           >
             {isGenerating ? (
@@ -223,7 +273,7 @@ export default function RecipesFromGroceryPage() {
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        {getTotalTime(recipe.prepTime, recipe.cookTime)} min
+                        {getTotalTime(recipe.cookTime)} min
                       </div>
                       <span className="text-sm text-gray-500">({recipe.cuisine})</span>
                     </div>
@@ -294,7 +344,7 @@ export default function RecipesFromGroceryPage() {
 
         {/* Back to Home */}
         <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
             ← Back to Home
           </Link>
         </div>
