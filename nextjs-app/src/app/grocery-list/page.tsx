@@ -340,7 +340,7 @@ export default function GroceryListPage() {
 
         {/* Back to Home */}
         <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
             ← Back to Home
           </Link>
         </div>

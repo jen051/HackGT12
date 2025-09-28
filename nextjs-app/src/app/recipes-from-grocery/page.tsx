@@ -10,12 +10,12 @@ import Link from "next/link";
 import { auth } from "@/firebase/config";
 import { saveRecipe, removeSavedRecipe } from "@/firebase/recipes";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, collection } from "firebase/firestore";
+import { db } from "@/firebase/config";
 
 interface GroceryItem {
-  id: string;
   name: string;
-  quantity: string;
-  isSelected: boolean;
+  quantity: number;
 }
 
 interface Recipe {
@@ -32,18 +32,10 @@ interface Recipe {
 }
 
 export default function RecipesFromGroceryPage() {
-  // Mock grocery items
-  const initialItems: GroceryItem[] = [
-    { id: "1", name: "Tomato", quantity: "3", isSelected: true },
-    { id: "2", name: "Milk", quantity: "1", isSelected: true },
-    { id: "3", name: "Bread", quantity: "2", isSelected: true },
-  ];
-
-  const [selectedItems, setSelectedItems] = useState<GroceryItem[]>(initialItems);
+  const [selectedItems, setSelectedItems] = useState<GroceryItem[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [isDone, setIsDone] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   // Mock recipes
@@ -78,14 +70,33 @@ export default function RecipesFromGroceryPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserId(user.uid);
+        fetchGroceryList(user.uid);
       } else {
         console.log("No user logged in for recipe generation.");
-        // Optionally redirect to login if no user is found
         window.location.href = '/account';
       }
     });
     return () => unsubscribe();
   }, []);
+
+  const fetchGroceryList = async (uid: string) => {
+    try {
+      const groceryListDocRef = doc(db, "users", uid, "groceryList", "listData");
+      const docSnap = await getDoc(groceryListDocRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && Array.isArray(data.items)) {
+          setSelectedItems(data.items as GroceryItem[]);
+        }
+      } else {
+        console.log("No grocery list found!");
+        setSelectedItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching grocery list:", error);
+      setMessage({ type: "error", text: "Failed to load grocery list." });
+    }
+  };
 
   const handleGenerateRecipes = async () => {
     setIsGenerating(true);
@@ -143,21 +154,21 @@ export default function RecipesFromGroceryPage() {
     }
   };
 
-  const toggleItem = (id: string) => {
-    if (isDone) return; // disable after done
-    setSelectedItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isSelected: !item.isSelected } : item
-      )
-    );
-  };
+  // const toggleItem = (id: string) => {
+  //   if (isDone) return; // disable after done
+  //   setSelectedItems((prev) =>
+  //     prev.map((item) =>
+  //       item.id === id ? { ...item, isSelected: !item.isSelected } : item
+  //     )
+  //   );
+  // };
 
-  const handleDone = () => {
-    setIsDone(true);
-    const finalList = selectedItems.filter((item) => item.isSelected);
-    localStorage.setItem("finalGroceryList", JSON.stringify(finalList));
-    //alert("Final grocery list saved!");
-  };
+  // const handleDone = () => {
+  //   setIsDone(true);
+  //   const finalList = selectedItems.filter((item) => item.isSelected);
+  //   localStorage.setItem("finalGroceryList", JSON.stringify(finalList));
+  //   //alert("Final grocery list saved!");
+  // };
 
   const getTotalTime = (cookTime: number) => cookTime;
 
@@ -182,23 +193,18 @@ export default function RecipesFromGroceryPage() {
             <div className="flex flex-wrap gap-2">
               {selectedItems.map((item) => (
                 <Badge
-                  key={item.id}
-                  onClick={() => toggleItem(item.id)}
-                  className={`cursor-pointer ${
-                    item.isSelected
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-200 text-gray-500 line-through"
-                  }`}
+                  key={item.name}
+                  className="bg-green-100 text-green-800"
                 >
                   {item.name} ({item.quantity})
                 </Badge>
               ))}
             </div>
-            <div className="text-center mt-4">
+            {/* <div className="text-center mt-4">
               <Button onClick={handleDone} disabled={isDone} className="bg-green-600 hover:bg-green-700">
                 {isDone ? "Done ✔️" : "Finalize List"}
               </Button>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 
@@ -206,7 +212,7 @@ export default function RecipesFromGroceryPage() {
         <div className="text-center mb-6">
           <Button
             onClick={handleGenerateRecipes}
-            disabled={isGenerating || selectedItems.filter((i) => i.isSelected).length === 0}
+            disabled={isGenerating || selectedItems.filter((i) => i.quantity > 0).length === 0}
             className="bg-green-600 hover:bg-green-700"
           >
             {isGenerating ? (
@@ -338,7 +344,7 @@ export default function RecipesFromGroceryPage() {
 
         {/* Back to Home */}
         <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
             ← Back to Home
           </Link>
         </div>

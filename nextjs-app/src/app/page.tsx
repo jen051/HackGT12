@@ -24,7 +24,7 @@ export default function Home() {
                 <Link href="/account">Sign In</Link>
               </Button>
               <Button asChild className="bg-green-600 hover:bg-green-700">
-                <Link href="/account">Get Started</Link>
+                <Link href="/profile-setup">Get Started</Link>
               </Button>
             </div>
           </div>
@@ -44,7 +44,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-green-600 hover:bg-green-700">
-              <Link href="/account">
+              <Link href="/profile-setup">
                 <UserPlus className="w-5 h-5 mr-2" />
                 Create Account
               </Link>

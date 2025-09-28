@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DollarSign, Heart, Globe, Utensils, X, ShoppingCart, Clock } from "lucide-react";
+import { DollarSign, Heart, Globe, Utensils, X, ShoppingCart, Clock, UserPlus, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { auth } from "@/firebase/config";
 import { updateUserProfile } from "@/firebase/profile";
 import { onAuthStateChanged } from "firebase/auth";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { signUp } from "@/firebase/auth";
 
 export default function ProfileSetupPage() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -438,7 +439,7 @@ export default function ProfileSetupPage() {
 
         {/* Back to Home */}
         <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+          <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
             ← Back to Home
           </Link>
         </div>
