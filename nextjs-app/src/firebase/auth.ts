@@ -1,6 +1,6 @@
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "./config";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { doc, setDoc, collection, serverTimestamp } from "firebase/firestore";
 
 // Sign up new user
 export async function signUp(email: string, password: string, name: string = "") {
@@ -31,7 +31,10 @@ export async function signUp(email: string, password: string, name: string = "")
     // Create empty groceryList subcollection
     const groceryListCollectionRef = collection(userDocRef, "groceryList");
     // Add an empty document to the groceryList collection to create it
-    await setDoc(doc(groceryListCollectionRef, "listData"), {}); // Can be empty or have initial fields
+    await setDoc(doc(groceryListCollectionRef, "listData"), {
+      createdAt: serverTimestamp(),
+      items: []
+    }); // Can be empty or have initial fields
   }
 
   return user;
