@@ -16,9 +16,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { signUp } from "@/firebase/auth";
 
 export default function ProfileSetupPage() {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0); // Start at step 0 for signup
   const [userId, setUserId] = useState<string | null>(null);
   const [profileData, setProfileData] = useState({
+    name: "", // Add name for signup
+    email: "", // Add email for signup
+    password: "", // Add password for signup
+    confirmPassword: "", // Add confirmPassword for signup
     weeklyBudget: "",
     budgetRange: "",
     dietaryRestrictions: [] as string[],
@@ -33,15 +37,18 @@ export default function ProfileSetupPage() {
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [currentIngredient, setCurrentIngredient] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserId(user.uid);
+        // If user is logged in, proceed to actual profile setup steps
+        setCurrentStep(1);
       } else {
-        // Optionally redirect to login if no user is found
-        console.log("No user logged in for profile setup.");
-        window.location.href = '/account'; // Redirect to login
+        // If no user, stay on signup step (step 0)
+        setUserId(null);
+        setCurrentStep(0);
       }
     });
     return () => unsubscribe();
@@ -105,27 +112,122 @@ export default function ProfileSetupPage() {
   };
 
   const handleSubmit = async () => {
-    if (!userId) {
-      setMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
-      return;
-    }
+    if (currentStep === 0) { // Handle signup
+      if (profileData.password !== profileData.confirmPassword) {
+        setMessage({ type: 'error', text: 'Passwords do not match' });
+        return;
+      }
+      if (profileData.password.length < 6) {
+        setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+        return;
+      }
+      try {
+        const userCredential = await signUp(profileData.email, profileData.password, profileData.name);
+        setUserId(userCredential?.uid || null);
+        setMessage({ type: 'success', text: 'Account created successfully! Proceed with profile setup.' });
+        setCurrentStep(1); // Move to first profile setup step
+      } catch (error: any) {
+        setMessage({ type: 'error', text: error.message || 'An error occurred during signup.' });
+      }
+    } else { // Handle profile update
+      if (!userId) {
+        setMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
+        return;
+      }
 
-    try {
-      await updateUserProfile(userId, profileData);
-      setMessage({
-        type: "success",
-        text: "Profile saved successfully! Redirecting to grocery list generator...",
-      });
-      setTimeout(() => {
-        window.location.href = "/grocery-list";
-      }, 2000);
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to save profile. Please try again." });
+      try {
+        await updateUserProfile(userId, profileData);
+        setMessage({
+          type: "success",
+          text: "Profile saved successfully! Redirecting to grocery list generator...",
+        });
+        setTimeout(() => {
+          window.location.href = "/grocery-list";
+        }, 2000);
+      } catch (error: any) {
+        setMessage({ type: "error", text: error.message || "Failed to save profile. Please try again." });
+      }
     }
   };
 
   const renderStep = () => {
     switch (currentStep) {
+      case 0:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <UserPlus className="w-12 h-12 text-green-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Create Your Account</h3>
+              <p className="text-gray-600">Start your healthy journey with NutriCare</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={profileData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="Enter your email"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={profileData.password}
+                    onChange={(e) => handleInputChange("password", e.target.value)}
+                    placeholder="Enter your password"
+                    className="pl-10 pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={profileData.confirmPassword}
+                    onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                    placeholder="Confirm your password"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       case 1:
         return (
           <div className="space-y-6">
@@ -411,7 +513,11 @@ export default function ProfileSetupPage() {
             Previous
           </Button>
 
-          {currentStep < 6 ? (
+          {currentStep === 0 ? (
+            <Button onClick={handleSubmit} className="bg-green-600 hover:bg-green-700">
+              Create Account
+            </Button>
+          ) : currentStep < 6 ? (
             <Button onClick={handleNext} className="bg-green-600 hover:bg-green-700">
               Next
             </Button>
