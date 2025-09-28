@@ -1,13 +1,16 @@
 # /mcp-server/models/schemas.py
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Define the structure for the rich context sent by the Next.js backend
 class Context(BaseModel):
-    dietary: str = Field(..., description="User's primary dietary restriction (e.g., 'Keto', 'Vegan').")
-    budget: float = Field(..., description="Maximum budget for the grocery list.")
-    stores: List[str] = Field(..., description="List of preferred local grocery stores.")
-    staples: List[str] = Field(..., description="List of essential items the user always needs.")
+    allergies: str = "None"
+    budget: Optional[int] = 100
+    dietary: str = "None"
+    cuisines: List[str] = Field(default_factory=list)
+    inventory: List[str] = Field(default_factory=list)
+    max_time: Optional[int] = None
+    nutrition: List[str] = Field(default_factory=list)
 
 # Define the incoming request payload from the Next.js client
 class GenerateListRequest(BaseModel):

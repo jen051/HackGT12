@@ -25,9 +25,9 @@ async def generate_list_endpoint(request: GenerateListRequest):
     """
     Receives the user's query and full database context, then calls the LLM service.
     """
-    
-    # The database context is automatically included in the 'request' object 
-    # thanks to the Next.js client
+    #query firebase data
+    #store in variable
+    #insert variable into prompt --> transfer into nextjs
     
     response_data = await generate_list_from_llm(
         user_query=request.user_query,
