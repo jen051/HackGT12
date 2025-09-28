@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DollarSign, Heart, Globe, Utensils, X, ShoppingCart } from "lucide-react";
 import Link from "next/link";
-import { auth } from "@/firebase/config";
-import { updateUserProfile } from "@/firebase/profile";
-import { onAuthStateChanged } from "firebase/auth";
 
 export default function ProfileSetupPage() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [userId, setUserId] = useState<string | null>(null);
   const [profileData, setProfileData] = useState({
     weeklyBudget: "",
     budgetRange: "",
@@ -28,19 +24,6 @@ export default function ProfileSetupPage() {
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [currentIngredient, setCurrentIngredient] = useState("");
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        // Optionally redirect to login if no user is found
-        console.log("No user logged in for profile setup.");
-        window.location.href = '/account'; // Redirect to login
-      }
-    });
-    return () => unsubscribe();
-  }, []);
 
   const dietaryOptions = [
     "Vegetarian", "Vegan", "Pescatarian", "Gluten-Free", "Dairy-Free",
@@ -100,13 +83,7 @@ export default function ProfileSetupPage() {
   };
 
   const handleSubmit = async () => {
-    if (!userId) {
-      setMessage({ type: 'error', text: 'User not authenticated. Please log in again.' });
-      return;
-    }
-
     try {
-<<<<<<< HEAD
       // ✅ Persist the full profile so GroceryListPage can read pantry items
       localStorage.setItem("profileData", JSON.stringify(profileData));
 
@@ -114,20 +91,11 @@ export default function ProfileSetupPage() {
         type: "success",
         text: "Profile saved successfully! Redirecting to grocery list generator...",
       });
-=======
-      await updateUserProfile(userId, profileData);
-      setMessage({ type: 'success', text: 'Profile saved successfully! Redirecting to grocery list generator...' });
->>>>>>> 6b729a9bca69b5f466cfb9b81920ca30dfedc834
       setTimeout(() => {
         window.location.href = "/grocery-list";
       }, 2000);
-<<<<<<< HEAD
     } catch (error) {
       setMessage({ type: "error", text: "Failed to save profile. Please try again." });
-=======
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Failed to save profile. Please try again.' });
->>>>>>> 6b729a9bca69b5f466cfb9b81920ca30dfedc834
     }
   };
 
