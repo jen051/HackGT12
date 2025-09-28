@@ -10,6 +10,10 @@ import Link from "next/link";
 import { auth } from "@/firebase/config";
 import { saveGroceryList } from "@/firebase/profile"; // Assuming saveGroceryList is in profile.ts
 import { onAuthStateChanged } from "firebase/auth";
+import firebase from "firebase/compat/app";
+
+const STREAMLIT_BASE =
+  process.env.NEXT_PUBLIC_STREAMLIT_URL ?? "http://localhost:8501";
 
 interface GroceryItem {
   name: string;
@@ -73,20 +77,36 @@ export default function GroceryListPage() {
   }, []);
 
   const handleGenerateList = async () => {
-    setIsGenerating(true);
+    // setIsGenerating(true);
+    // setMessage(null);
+
+    // try {
+    //   await new Promise((resolve) => setTimeout(resolve, 2000));
+    //   setMessage({
+    //     type: "success",
+    //     text: "Grocery list generated successfully! You can now customize it before proceeding to recipes.",
+    //   });
+    // } catch (error) {
+    //   setMessage({ type: "error", text: "Failed to generate grocery list. Please try again." });
+    // } finally {
+    //   setIsGenerating(false);
+    // }
     setMessage(null);
 
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setMessage({
-        type: "success",
-        text: "Grocery list generated successfully! You can now customize it before proceeding to recipes.",
-      });
-    } catch (error) {
-      setMessage({ type: "error", text: "Failed to generate grocery list. Please try again." });
-    } finally {
-      setIsGenerating(false);
+    // guard: must have a user
+    if (!userId) {
+      setMessage({ type: "error", text: "Please log in to generate a list." });
+      return;
     }
+
+    // Build URL with params BEFORE any awaits (avoids popup blockers)
+    const url = new URL(STREAMLIT_BASE);
+    url.searchParams.set("username", userId);
+    // url.searchParams.set("query", DEFAULT_QUERY);
+    url.searchParams.set("autorun", "1"); // ask Streamlit to auto-run once
+
+    // Open new tab immediately (no await)
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
   };
 
   const toggleItemSelection = (itemName: string) => {
@@ -206,7 +226,7 @@ export default function GroceryListPage() {
         <div className="text-center mb-6">
           <Button
             onClick={handleGenerateList}
-            disabled={isGenerating}
+            // disabled={isGenerating}
             className="bg-green-600 hover:bg-green-700"
           >
             {isGenerating ? (
@@ -226,11 +246,10 @@ export default function GroceryListPage() {
         {/* Message */}
         {message && (
           <Alert
-            className={`mb-6 ${
-              message.type === "error"
+            className={`mb-6 ${message.type === "error"
                 ? "border-red-200 bg-red-50"
                 : "border-green-200 bg-green-50"
-            }`}
+              }`}
           >
             <AlertDescription
               className={message.type === "error" ? "text-red-800" : "text-green-800"}
@@ -255,20 +274,18 @@ export default function GroceryListPage() {
                   {items.map((item) => (
                     <div
                       key={item.name}
-                      className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
-                        item.isSelected
+                      className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all ${item.isSelected
                           ? "border-green-200 bg-green-50"
                           : "border-gray-200 bg-gray-50"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => toggleItemSelection(item.name)}
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                            item.isSelected
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center ${item.isSelected
                               ? "border-green-600 bg-green-600"
                               : "border-gray-300"
-                          }`}
+                            }`}
                         >
                           {item.isSelected && (
                             <CheckCircle className="w-3 h-3 text-white" />
