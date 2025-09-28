@@ -16,8 +16,7 @@ class Context(BaseModel):
 # Define the incoming request payload from the Next.js client
 class GenerateListRequest(BaseModel):
     user_id: str
-    user_query: str = Field(..., description="The user's free-form request (e.g., 'list for the week').")
-    context: Context
+    user_query: str
 
 class Category(str, Enum):
     PROTEIN = "Protein"
@@ -32,8 +31,13 @@ class GroceryItem(BaseModel):
     quantity: int
     category: Category
 
+class Recipe(BaseModel):
+    recipe: str
+    ingredients: List[str]
+    totalCost: float
+    cookingTime: int  # in minutes
 
 class GroceryListResponse(BaseModel):
     estimatedTotalCost: float
-    recipe: str
+    recipeList: List[Recipe]
     groceryList: List[GroceryItem]

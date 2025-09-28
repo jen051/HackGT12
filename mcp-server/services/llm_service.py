@@ -46,7 +46,11 @@ def build_contextual_prompt(user_query: str, context: Context) -> str:
 
     OUTPUT SHAPE (exact keys and types):
     - estimatedTotalCost: number
-    - recipe: string
+    - recipeList: array of objects with keys:
+        - recipe: string (the full recipe text)
+        - ingredients: array of strings (each ingredient needed)
+        - totalCost: number (estimated cost for this recipe)
+        - cookingTime: number (in minutes)
     - groceryList: array of objects with keys:
       - item: string
       - category: string (one of: Protein, Dairy, Vegetables, Grains, Fruits, Pantry)
@@ -132,7 +136,7 @@ def create_context_from_profile(profile: Dict[str, Any]) -> Context:
         max_time=(profile.get("maxTime") or None),                       # treat 0 as unspecified
     )
 
-def get_response(username:str, user_query:str) -> GroceryListResponse:
+async def get_response(username:str, user_query:str) -> GroceryListResponse:
     user = get_full_user_with_profile_by_name(username)
     if not user:
         raise ValueError(f"User '{username}' not found.")
@@ -140,10 +144,10 @@ def get_response(username:str, user_query:str) -> GroceryListResponse:
     profile = user_info.get("profile", {})
     context = create_context_from_profile(profile)
     
-    response = asyncio.run(generate_list_from_llm(
+    response = await generate_list_from_llm(
         user_query=user_query,
         context=context
-    ))
+    )
     return response
 
 def add_is_selected_flag(payload: Dict[str, Any]) -> Dict[str, Any]:
