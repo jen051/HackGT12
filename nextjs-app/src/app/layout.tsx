@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { createPageUrl } from "../lib/utils";
 import { 
   Heart, 
   ChefHat, 
@@ -27,7 +27,7 @@ import {
   SidebarFooter,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from "../components/ui/sidebar";
 
 const navigationItems = [
   {
@@ -82,7 +82,7 @@ const navigationItems = [
   },
 ];
 
-export default function Layout({ children, currentPageName }) {
+export default function Layout({ children, currentPageName }: { children: React.ReactNode, currentPageName: string }) {
   const location = useLocation();
 
   return (
